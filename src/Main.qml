@@ -105,8 +105,10 @@ ApplicationWindow {
     function newFolder(folder) {
         nameDialog.askForName("New folder", "", "Create", function(name) {
             var path = vault.createFolder(folder, name);
-            if (path.length > 0)
+            if (path.length > 0) {
                 sidebar.reveal(path);
+                sidebar.selectedPath = path;
+            }
         });
     }
 
@@ -132,6 +134,29 @@ ApplicationWindow {
             if (renamed.length > 0 && holdsOpenNote)
                 backend.followMovedFile(vault.urlForPath(renamed + open.substring(path.length)));
         });
+    }
+
+    // Moving the open note, or a folder holding it, keeps it open at its new
+    // path.
+    function moveItem(path, folder) {
+        var open = currentPath();
+        if (path === open) {
+            var target = vault.moveTarget(path, folder);
+            if (target.length > 0 && target !== path && backend.moveCurrentFile(vault.urlForPath(target)))
+                sidebar.reveal(target);
+            return;
+        }
+        var holdsOpenNote = open.length > 0 && open.indexOf(path + "/") === 0;
+        if (holdsOpenNote && !backend.flushAutoSave()) {
+            backend.save();
+            return;
+        }
+        var moved = vault.movePath(path, folder);
+        if (moved.length === 0 || moved === path)
+            return;
+        if (holdsOpenNote)
+            backend.followMovedFile(vault.urlForPath(moved + open.substring(path.length)));
+        sidebar.reveal(moved);
     }
 
     function trashItem(path) {
@@ -339,7 +364,7 @@ ApplicationWindow {
     // window moves to Ctrl+Shift+N.
     Shortcut {
         sequence: "Ctrl+N"
-        onActivated: win.newNote(vault.folderFor(win.currentPath()))
+        onActivated: win.newNote(sidebar.targetFolder)
     }
 
     Shortcut {
@@ -536,6 +561,7 @@ ApplicationWindow {
         onNewFolderRequested: function(folder) { win.newFolder(folder); }
         onRenameRequested: function(path) { win.renameItem(path); }
         onTrashRequested: function(path) { win.trashItem(path); }
+        onMoveRequested: function(path, folder) { win.moveItem(path, folder); }
         onChooseFolderRequested: win.chooseFolder()
     }
 

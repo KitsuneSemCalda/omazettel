@@ -67,6 +67,8 @@ public:
     Q_INVOKABLE QString renameTarget(const QString &path, const QString &newName);
     Q_INVOKABLE QString renamePath(const QString &path, const QString &newName);
     Q_INVOKABLE bool trashPath(const QString &path);
+    Q_INVOKABLE QString moveTarget(const QString &path, const QString &folder);
+    Q_INVOKABLE QString movePath(const QString &path, const QString &folder);
 
     // Remembering which note was open, to reopen it next time.
     Q_INVOKABLE void rememberLastNote(const QUrl &url);

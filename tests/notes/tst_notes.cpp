@@ -175,6 +175,39 @@ private slots:
                  QStringLiteral("New"));
     }
 
+    void movesNotesAndFoldersBetweenFolders() {
+        QTemporaryDir dir, outside;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        const QString a = vault.createFolder(vault.rootPath(), QStringLiteral("A"));
+        const QString b = vault.createFolder(vault.rootPath(), QStringLiteral("B"));
+        const QString note = vault.createNote(a, QStringLiteral("Note"));
+
+        const QString moved = vault.movePath(note, b);
+        QCOMPARE(moved, b + QStringLiteral("/Note.md"));
+        QVERIFY(QFile::exists(moved));
+        QVERIFY(!QFile::exists(note));
+
+        // Folders move with what is in them.
+        const QString movedFolder = vault.movePath(b, a);
+        QCOMPARE(movedFolder, a + QStringLiteral("/B"));
+        QVERIFY(QFile::exists(movedFolder + QStringLiteral("/Note.md")));
+
+        // Back to the top level.
+        QCOMPARE(vault.movePath(movedFolder + QStringLiteral("/Note.md"), vault.rootPath()),
+                 vault.rootPath() + QStringLiteral("/Note.md"));
+
+        // Not into itself, not over an existing name, not outside.
+        QCOMPARE(vault.movePath(a, movedFolder), QString());
+        QVERIFY(vault.lastError().contains(QStringLiteral("into itself")));
+        QCOMPARE(vault.movePath(a, a), QString());
+        vault.createNote(a, QStringLiteral("Note"));
+        QCOMPARE(vault.movePath(vault.rootPath() + QStringLiteral("/Note.md"), a), QString());
+        QVERIFY(vault.lastError().contains(QStringLiteral("already has")));
+        QCOMPARE(vault.movePath(vault.rootPath() + QStringLiteral("/Note.md"), outside.path()), QString());
+        QVERIFY(QFile::exists(vault.rootPath() + QStringLiteral("/Note.md")));
+    }
+
     void movesNotesToTheTrash() {
         QTemporaryDir dir;
         Vault vault;
@@ -327,6 +360,92 @@ private slots:
         QCOMPARE(vault.lastNotePath(), dir.filePath(QStringLiteral("Two.md")));
     }
 
+    void newNotesGoInTheSelectedFolder() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("Top.md")), "# Top\n");
+        Backend backend;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        vault.setSidebarVisible(true);
+        const QString first = vault.createFolder(vault.rootPath(), QStringLiteral("First"));
+        const QString second = vault.createFolder(vault.rootPath(), QStringLiteral("Second"));
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+        QVERIFY(window);
+        auto *sidebar = window->findChild<QQuickItem *>(QStringLiteral("sidebar"));
+
+        // With a note open and nothing else picked, its folder.
+        QMetaObject::invokeMethod(window.get(), "openNote",
+                                  Q_ARG(QVariant, QUrl::fromLocalFile(dir.filePath(QStringLiteral("Top.md")))));
+        QCOMPARE(sidebar->property("targetFolder").toString(), vault.rootPath());
+
+        // Clicking a folder picks it, even with a note open elsewhere.
+        sidebar->setProperty("selectedPath", first);
+        QCOMPARE(sidebar->property("targetFolder").toString(), first);
+        sidebar->setProperty("selectedPath", second + QStringLiteral("/x.md"));
+        QCOMPARE(sidebar->property("targetFolder").toString(), second);
+    }
+
+    void movingTheOpenNoteKeepsItOpen() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("Open.md")), "# Open\n");
+        Backend backend;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        const QString folder = vault.createFolder(vault.rootPath(), QStringLiteral("Archive"));
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+        QVERIFY(window);
+        QMetaObject::invokeMethod(window.get(), "openNote",
+                                  Q_ARG(QVariant, QUrl::fromLocalFile(dir.filePath(QStringLiteral("Open.md")))));
+
+        QMetaObject::invokeMethod(window.get(), "moveItem",
+                                  Q_ARG(QVariant, vault.rootPath() + QStringLiteral("/Open.md")),
+                                  Q_ARG(QVariant, folder));
+        QCOMPARE(backend.fileUrl(), QUrl::fromLocalFile(folder + QStringLiteral("/Open.md")));
+
+        // And moving the folder holding it.
+        const QString outer = vault.createFolder(vault.rootPath(), QStringLiteral("Outer"));
+        QMetaObject::invokeMethod(window.get(), "moveItem", Q_ARG(QVariant, folder), Q_ARG(QVariant, outer));
+        QCOMPARE(backend.fileUrl(), QUrl::fromLocalFile(outer + QStringLiteral("/Archive/Open.md")));
+        QVERIFY(QFile::exists(outer + QStringLiteral("/Archive/Open.md")));
+    }
+
+    void dragsANoteOntoAFolder() {
+        QTemporaryDir dir;
+        Backend backend;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        vault.setSidebarVisible(true);
+        const QString folder = vault.createFolder(vault.rootPath(), QStringLiteral("Folder"));
+        const QString note = vault.createNote(vault.rootPath(), QStringLiteral("Loose"));
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+        auto *quickWindow = qobject_cast<QQuickWindow *>(window.get());
+        QVERIFY(quickWindow);
+        quickWindow->show();
+        QVERIFY(QTest::qWaitForWindowExposed(quickWindow));
+
+        QQuickItem *noteRow = nullptr;
+        QQuickItem *folderRow = nullptr;
+        // The folder model loads and sorts in the background; wait until it
+        // has put the folder first, so rows do not move under the drag.
+        QTRY_VERIFY((noteRow = rowLabelled(quickWindow, QStringLiteral("Loose")))
+                    && (folderRow = rowLabelled(quickWindow, QStringLiteral("Folder")))
+                    && folderRow->mapToScene(QPointF()).y() < noteRow->mapToScene(QPointF()).y());
+        QTest::qWait(100);
+
+        const QPoint from = noteRow->mapToScene(QPointF(noteRow->width() / 2, noteRow->height() / 2)).toPoint();
+        const QPoint to = folderRow->mapToScene(QPointF(folderRow->width() / 2, folderRow->height() / 2)).toPoint();
+        QTest::mousePress(quickWindow, Qt::LeftButton, {}, from);
+        for (int step = 1; step <= 10; ++step)
+            QTest::mouseMove(quickWindow, from + (to - from) * step / 10, 10);
+        QTest::mouseRelease(quickWindow, Qt::LeftButton, {}, to, 10);
+
+        QTRY_VERIFY(QFile::exists(folder + QStringLiteral("/Loose.md")));
+        QVERIFY(!QFile::exists(note));
+    }
+
     void sidebarHidesAndShowsTheEmptyState() {
         Backend backend;
         Vault vault;
@@ -345,6 +464,25 @@ private slots:
     }
 
 private:
+    // The tree row whose label reads text.
+    static QQuickItem *rowLabelled(QQuickWindow *window, const QString &text) {
+        auto *tree = window->findChild<QQuickItem *>(QStringLiteral("notesTree"));
+        return tree ? findText(tree, text) : nullptr;
+    }
+
+    // Views do not make their delegates QObject children, so walk the
+    // visual item tree.
+    static QQuickItem *findText(QQuickItem *item, const QString &text) {
+        for (QQuickItem *child : item->childItems()) {
+            if (child->inherits("QQuickText") && child->isVisible()
+                    && child->property("text").toString() == text)
+                return child->parentItem();
+            if (QQuickItem *found = findText(child, text))
+                return found;
+        }
+        return nullptr;
+    }
+
     QObject *makeEditor(Backend &backend) {
         QQmlComponent component(&m_engine);
         component.setData("import QtQuick\nTextEdit { property var doc: textDocument }", QUrl());

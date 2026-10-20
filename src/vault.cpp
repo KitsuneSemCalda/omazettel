@@ -298,6 +298,47 @@ QString Vault::renamePath(const QString &path, const QString &newName) {
     return target;
 }
 
+// Where path would land if moved into folder, or empty (with lastError set)
+// when the move is not allowed.
+QString Vault::moveTarget(const QString &path, const QString &folder) {
+    const QString from = insideOrEmpty(path);
+    const QString into = insideOrEmpty(folder);
+    if (from.isEmpty() || into.isEmpty() || from == m_rootPath || !QFileInfo(into).isDir()) {
+        setError(QStringLiteral("Only notes and folders inside the notes folder can be moved."));
+        return QString();
+    }
+    if (into == from || into.startsWith(from + QLatin1Char('/'))) {
+        setError(QStringLiteral("A folder cannot be moved into itself."));
+        return QString();
+    }
+    const QString target = QDir(into).filePath(QFileInfo(from).fileName());
+    if (target == from) {
+        setError(QString());
+        return target;
+    }
+    if (QFileInfo::exists(target)) {
+        setError(QStringLiteral("%1 already has something named %2.")
+                     .arg(QFileInfo(into).fileName(), QFileInfo(from).fileName()));
+        return QString();
+    }
+    setError(QString());
+    return target;
+}
+
+QString Vault::movePath(const QString &path, const QString &folder) {
+    const QString target = moveTarget(path, folder);
+    if (target.isEmpty())
+        return QString();
+    const QString from = insideOrEmpty(path);
+    if (target == from)
+        return target;
+    if (!QFile::rename(from, target) && !QDir().rename(from, target)) {
+        setError(QStringLiteral("Could not move %1.").arg(QFileInfo(from).fileName()));
+        return QString();
+    }
+    return target;
+}
+
 bool Vault::trashPath(const QString &path) {
     const QString inside = insideOrEmpty(path);
     if (inside.isEmpty() || inside == m_rootPath) {

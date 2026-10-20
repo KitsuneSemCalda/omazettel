@@ -17,6 +17,11 @@ Rectangle {
     property color mutedColor: "#909191"
     property color accentColor: "#428bca"
     property string currentPath: ""
+    // The row last clicked: a folder, or a note. New notes and folders go
+    // in it (or in the folder holding it).
+    property string selectedPath: ""
+    // Where new notes and folders go right now.
+    readonly property string targetFolder: vault.folderFor(selectedPath.length > 0 ? selectedPath : currentPath)
 
     // Every sidebar colour comes from here, derived from the page colour so
     // the sidebar follows the Omarchy theme.
@@ -24,6 +29,8 @@ Rectangle {
     readonly property color hairlineColor: Qt.rgba(mutedColor.r, mutedColor.g, mutedColor.b, 0.25)
     readonly property color hoverFill: Qt.rgba(textColor.r, textColor.g, textColor.b, 0.06)
     readonly property color currentFill: Qt.rgba(accentColor.r, accentColor.g, accentColor.b, 0.16)
+    readonly property color selectedFill: Qt.rgba(textColor.r, textColor.g, textColor.b, 0.10)
+    readonly property color dropFill: Qt.rgba(accentColor.r, accentColor.g, accentColor.b, 0.28)
 
     signal openRequested(url fileUrl)
     signal newNoteRequested(string folder)
@@ -31,6 +38,9 @@ Rectangle {
     signal renameRequested(string path)
     signal trashRequested(string path)
     signal chooseFolderRequested()
+    signal moveRequested(string path, string folder)
+
+    onCurrentPathChanged: selectedPath = currentPath
 
     function scaled(pixels) { return Math.max(1, Math.round(pixels * textScale)); }
 
@@ -108,7 +118,7 @@ Rectangle {
             hoverColor: root.textColor
             textScale: root.textScale
             tooltip: "New note (Ctrl+N)"
-            onClicked: root.newNoteRequested(vault.folderFor(root.currentPath))
+            onClicked: root.newNoteRequested(root.targetFolder)
         }
 
         IconButton {
@@ -119,7 +129,7 @@ Rectangle {
             hoverColor: root.textColor
             textScale: root.textScale
             tooltip: "New folder"
-            onClicked: root.newFolderRequested(vault.folderFor(root.currentPath))
+            onClicked: root.newFolderRequested(root.targetFolder)
         }
 
         IconButton {
@@ -222,6 +232,53 @@ Rectangle {
     }
 
     // ── The notes tree ──────────────────────────────────────────────────────
+
+    // Dropping below the rows, or on the folder name at the top, moves the
+    // dragged note or folder to the top level of the notes folder.
+    DropArea {
+        id: rootDrop
+        objectName: "rootDropArea"
+        anchors.fill: treeView
+        keys: ["omazettel/path"]
+        onDropped: function(drop) {
+            root.moveRequested(drop.source.path, vault.rootPath);
+            drop.accept();
+        }
+        Rectangle {
+            anchors.fill: parent
+            color: root.dropFill
+            opacity: 0.35
+            visible: rootDrop.containsDrag && !treeView.rowHasDrag
+        }
+    }
+
+    // What follows the pointer while dragging a row.
+    Rectangle {
+        id: dragGhost
+        objectName: "dragGhost"
+        property string path: ""
+        property string label: ""
+        visible: Drag.active
+        z: 100
+        width: ghostLabel.implicitWidth + root.scaled(20)
+        height: root.scaled(26)
+        radius: root.scaled(4)
+        color: root.panelColor
+        border.color: root.accentColor
+        Drag.keys: ["omazettel/path"]
+        Drag.source: dragGhost
+        Drag.hotSpot.x: root.scaled(10)
+        Drag.hotSpot.y: height / 2
+        Label {
+            id: ghostLabel
+            anchors.centerIn: parent
+            text: dragGhost.label
+            color: root.textColor
+            font.family: "IBM Plex Mono"
+            font.pixelSize: root.scaled(12)
+        }
+    }
+
     TreeView {
         id: treeView
         objectName: "notesTree"
@@ -237,6 +294,9 @@ Rectangle {
         rootIndex: vault.rootIndex
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+        // Set while a row (rather than the space below the rows) is the
+        // drop target, so only one highlight shows.
+        property bool rowHasDrag: false
 
         delegate: Item {
             id: rowItem
@@ -255,6 +315,10 @@ Rectangle {
             readonly property string path: filePath
             readonly property bool isFolder: vault.isFolderPath(filePath)
             readonly property bool isCurrent: path.length > 0 && path === root.currentPath
+            readonly property bool isSelected: path.length > 0 && path === root.selectedPath
+            readonly property string label: isFolder ? fileName : fileName.replace(/\.(md|markdown)$/i, "")
+            // A drop on a folder goes into it; on a note, into the note's folder.
+            readonly property string dropFolder: isFolder ? path : vault.folderFor(path)
 
             implicitWidth: treeView.width
             implicitHeight: root.scaled(28)
@@ -264,8 +328,28 @@ Rectangle {
                 anchors.leftMargin: root.scaled(6)
                 anchors.rightMargin: root.scaled(6)
                 radius: root.scaled(4)
-                color: rowItem.isCurrent ? root.currentFill
-                                     : (rowMouse.containsMouse ? root.hoverFill : "transparent")
+                color: rowDrop.containsDrag ? root.dropFill
+                       : rowItem.isCurrent ? root.currentFill
+                       : rowItem.isSelected ? root.selectedFill
+                       : (rowMouse.containsMouse ? root.hoverFill : "transparent")
+            }
+
+            DropArea {
+                id: rowDrop
+                anchors.fill: parent
+                keys: ["omazettel/path"]
+                onContainsDragChanged: rowItem.treeView.rowHasDrag = containsDrag
+                onEntered: function(drag) {
+                    // A folder cannot go inside itself.
+                    var from = drag.source.path;
+                    drag.accepted = from !== rowItem.dropFolder
+                        && rowItem.dropFolder.indexOf(from + "/") !== 0
+                        && from !== rowItem.path;
+                }
+                onDropped: function(drop) {
+                    root.moveRequested(drop.source.path, rowItem.dropFolder);
+                    drop.accept();
+                }
             }
 
             IconButton {
@@ -285,7 +369,7 @@ Rectangle {
                 anchors.right: parent.right
                 anchors.rightMargin: root.scaled(12)
                 anchors.verticalCenter: parent.verticalCenter
-                text: rowItem.isFolder ? rowItem.fileName : rowItem.fileName.replace(/\.(md|markdown)$/i, "")
+                text: rowItem.label
                 elide: Text.ElideRight
                 color: rowItem.isCurrent ? root.accentColor
                                      : (rowItem.isFolder ? root.textColor : Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.85))
@@ -299,8 +383,38 @@ Rectangle {
                 anchors.fill: parent
                 hoverEnabled: true
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
-                cursorShape: Qt.PointingHandCursor
+                cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.PointingHandCursor
+                preventStealing: true
+                drag.target: dragGhost
+                drag.threshold: 6
+
+                onPressed: function(mouse) {
+                    if (mouse.button !== Qt.LeftButton)
+                        return;
+                    var start = mapToItem(root, mouse.x, mouse.y);
+                    dragGhost.x = start.x - root.scaled(10);
+                    dragGhost.y = start.y - dragGhost.height / 2;
+                    dragGhost.path = rowItem.path;
+                    dragGhost.label = rowItem.label;
+                }
+                drag.onActiveChanged: {
+                    if (drag.active)
+                        dragGhost.Drag.active = true;
+                }
+                onReleased: {
+                    if (dragGhost.Drag.active) {
+                        dragGhost.Drag.drop();
+                        dragGhost.Drag.active = false;
+                        rowItem.treeView.rowHasDrag = false;
+                    }
+                }
+                onCanceled: {
+                    dragGhost.Drag.active = false;
+                    rowItem.treeView.rowHasDrag = false;
+                }
+
                 onClicked: function(mouse) {
+                    root.selectedPath = rowItem.path;
                     if (mouse.button === Qt.RightButton) {
                         itemMenu.path = rowItem.path;
                         itemMenu.isFolder = rowItem.isFolder;
