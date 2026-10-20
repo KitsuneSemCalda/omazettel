@@ -7,10 +7,23 @@ OmaZettel is an independent fork of [Omawrite](https://github.com/omacom/omawrit
 by David Heinemeier Hansson. It is not made or endorsed by Omacom or the
 Omarchy project.
 
-> **Status: early development (0.1.0).** Right now OmaZettel is Omawrite
-> under a new name. The notes features are in progress: a notes folder
-> sidebar, `[[wiki links]]` and backlinks, search across notes, tags and
-> pandoc export.
+> **Status: early development (0.1.0).** The notes folder sidebar works.
+> Still to come: `[[wiki links]]` and backlinks, search across notes, tags
+> and pandoc export. See `docs/PLAN.md`.
+
+## Notes folder
+
+Choose a folder of Markdown notes from the sidebar (or its `…` menu). The
+sidebar shows the folder's `.md` and `.markdown` files and subfolders; hidden
+folders such as `.git` stay out of view. Notes stay ordinary files, so you can
+keep editing the same folder in VS Code, track it with git or run pandoc on it.
+
+- Click a note to open it in place. A note you were just editing is saved
+  first, the same way auto-save would have saved it.
+- Right-click a note or folder for New note here, New folder here, Rename and
+  Move to trash. Trashed notes go to the desktop trash, not deleted outright.
+- Drag the sidebar's right edge to resize it.
+- OmaZettel remembers the folder, recent folders and the last open note.
 
 ## Install
 
@@ -28,7 +41,9 @@ There is no package release yet. Build from source as described in
 - `Ctrl+Shift+S` saves as.
 - `Ctrl+O` opens a Markdown file through the portal picker.
 - `Ctrl+P` opens the system print dialog.
-- `Ctrl+N` opens a new OmaZettel window.
+- `Ctrl+N` makes a new note in the notes folder.
+- `Ctrl+Shift+N` opens a new OmaZettel window.
+- `Ctrl+\\` shows or hides the notes sidebar.
 - `Ctrl+Z`, `Ctrl+Shift+Z`, and `Ctrl+Y` handle undo and redo.
 - `Super+F` toggles fullscreen. Qt maps this key as `Meta+F`.
 - `Ctrl+F` searches the document. Use `Enter` or `Ctrl+G` for the next match and `Shift+Enter` for the previous match.

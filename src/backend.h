@@ -101,6 +101,13 @@ public:
     Q_INVOKABLE void saveWindowGeometry(int x, int y, int width, int height, bool maximized);
     Q_INVOKABLE void documentFontChanged();
 
+    // OmaZettel additions, implemented in backend_notes.cpp so upstream
+    // Omawrite changes to backend.cpp merge cleanly.
+    Q_INVOKABLE bool flushAutoSave();
+    Q_INVOKABLE bool moveCurrentFile(const QUrl &newUrl);
+    Q_INVOKABLE void startNewDocument();
+    Q_INVOKABLE void followMovedFile(const QUrl &newUrl);
+
 signals:
     void fileUrlChanged();
     void modifiedChanged();

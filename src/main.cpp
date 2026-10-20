@@ -13,6 +13,7 @@
 #include "backend.h"
 #include "cli.h"
 #include "systemtheme.h"
+#include "vault.h"
 
 #define OMAZETTEL_VERSION "0.1.0"
 
@@ -72,6 +73,11 @@ int main(int argc, char *argv[]) {
         applyInterfaceFont(backend.textScale());
     });
 
+    // OmaZettel: the notes folder. Created after the organization and
+    // application names are set, since it reads its settings on creation,
+    // and before the engine, so it outlives the interface that uses it.
+    Vault vault(&app);
+
     QQmlApplicationEngine engine;
     QObject::connect(&engine, &QQmlApplicationEngine::warnings, &app,
                      [](const QList<QQmlError> &warnings) {
@@ -79,6 +85,7 @@ int main(int argc, char *argv[]) {
             qWarning().noquote() << warning.toString();
     });
     engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
+    engine.rootContext()->setContextProperty(QStringLiteral("vault"), &vault);
 
     engine.load(QUrl(QStringLiteral("qrc:/Main.qml")));
     if (engine.rootObjects().isEmpty()) {
@@ -92,6 +99,8 @@ int main(int argc, char *argv[]) {
     const QStringList args = app.arguments();
     if (args.size() > 1)
         backend.openOrStartFile(QUrl::fromLocalFile(args.at(1)));
+    else if (const QString lastNote = vault.lastNotePath(); !lastNote.isEmpty())
+        backend.open(QUrl::fromLocalFile(lastNote));
 
     return app.exec();
 }

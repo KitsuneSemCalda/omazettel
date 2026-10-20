@@ -1,0 +1,18 @@
+QT += core gui concurrent quick testlib
+CONFIG += testcase c++17
+TEMPLATE = app
+TARGET = tst_notes
+
+INCLUDEPATH += ../../src
+SOURCES += \
+    tst_notes.cpp \
+    ../../src/backend.cpp \
+    ../../src/backend_notes.cpp \
+    ../../src/markdownhighlighter.cpp \
+    ../../src/vault.cpp
+HEADERS += \
+    ../../src/backend.h \
+    ../../src/markdownhighlighter.h \
+    ../../src/vault.h
+
+QT += widgets printsupport quickcontrols2 quickdialogs2 dbus

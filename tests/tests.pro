@@ -7,11 +7,14 @@ INCLUDEPATH += ../src
 SOURCES += \
     tst_omazettel.cpp \
     ../src/backend.cpp \
+    ../src/backend_notes.cpp \
     ../src/cli.cpp \
-    ../src/markdownhighlighter.cpp
+    ../src/markdownhighlighter.cpp \
+    ../src/vault.cpp
 HEADERS += \
     ../src/backend.h \
     ../src/cli.h \
-    ../src/markdownhighlighter.h
+    ../src/markdownhighlighter.h \
+    ../src/vault.h
 
 QT += widgets printsupport quickcontrols2 quickdialogs2 dbus

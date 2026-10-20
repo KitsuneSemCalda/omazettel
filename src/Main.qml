@@ -32,8 +32,13 @@ ApplicationWindow {
     // a tiling compositor can resize the window below its minimum width.
     readonly property int editorWidth: Math.min(
         Math.round(writerFontMetrics.averageCharacterWidth * 65),
-        Math.max(360, width - Math.round(writerFontMetrics.averageCharacterWidth * 20)),
-        Math.max(0, width - 48))
+        Math.max(360, contentWidth - Math.round(writerFontMetrics.averageCharacterWidth * 20)),
+        Math.max(0, contentWidth - 48))
+    // OmaZettel: the notes sidebar takes the left edge; the writing area is
+    // what is left.
+    readonly property bool sidebarShown: vault.sidebarVisible
+    readonly property int sidebarWidth: sidebarShown ? Math.min(vault.sidebarWidth, Math.round(width * 0.5)) : 0
+    readonly property int contentWidth: width - sidebarWidth
     property bool closeConfirmed: false
     property bool searchOpen: false
     property bool searchUpdating: false
@@ -66,6 +71,91 @@ ApplicationWindow {
         pendingOpenUrl = url;
         pendingAction = "open";
         unsavedChangesDialog.open();
+    }
+
+    // ── OmaZettel: notes folder actions ─────────────────────────────────────
+
+    function currentPath() {
+        return vault.pathForUrl(backend.fileUrl);
+    }
+
+    // Opening another note saves the current one first when auto-save would
+    // have saved it anyway, and asks only when it would not.
+    function openNote(url) {
+        if (vault.pathForUrl(url) === currentPath())
+            return;
+        if (backend.flushAutoSave())
+            backend.open(url);
+        else
+            requestOpen(url);
+    }
+
+    function newNote(folder) {
+        if (!vault.isOpen) {
+            backend.newWindow();
+            return;
+        }
+        nameDialog.askForName("New note", "", "Create", function(name) {
+            var path = vault.createNote(folder, name);
+            if (path.length > 0)
+                openNote(vault.urlForPath(path));
+        });
+    }
+
+    function newFolder(folder) {
+        nameDialog.askForName("New folder", "", "Create", function(name) {
+            var path = vault.createFolder(folder, name);
+            if (path.length > 0)
+                sidebar.reveal(path);
+        });
+    }
+
+    // Renaming the open note, or a folder holding it, keeps it open at its
+    // new path.
+    function renameItem(path) {
+        var name = path.substring(path.lastIndexOf("/") + 1);
+        nameDialog.askForName("Rename", name, "Rename", function(newName) {
+            var open = currentPath();
+            if (path === open) {
+                var target = vault.renameTarget(path, newName);
+                if (target.length > 0 && backend.moveCurrentFile(vault.urlForPath(target)))
+                    sidebar.reveal(target);
+                return;
+            }
+            var holdsOpenNote = open.length > 0 && open.indexOf(path + "/") === 0;
+            if (holdsOpenNote && !backend.flushAutoSave()) {
+                vault.clearError();
+                backend.save();
+                return;
+            }
+            var renamed = vault.renamePath(path, newName);
+            if (renamed.length > 0 && holdsOpenNote)
+                backend.followMovedFile(vault.urlForPath(renamed + open.substring(path.length)));
+        });
+    }
+
+    function trashItem(path) {
+        var name = path.substring(path.lastIndexOf("/") + 1);
+        var what = vault.isFolderPath(path) ? "the folder " + name + " and everything in it"
+                                            : name.replace(/\.(md|markdown)$/i, "");
+        nameDialog.confirm("Move to trash", "Move " + what + " to the trash?", "Move to trash", function() {
+            var open = currentPath();
+            var holdsOpenNote = open.length > 0 && (open === path || open.indexOf(path + "/") === 0);
+            if (holdsOpenNote) {
+                if (!backend.flushAutoSave()) {
+                    backend.save();
+                    return;
+                }
+                backend.startNewDocument();
+            }
+            vault.trashPath(path);
+        });
+    }
+
+    function chooseFolder() {
+        if (vault.isOpen)
+            folderDialog.currentFolder = vault.urlForPath(vault.rootPath);
+        folderDialog.open();
     }
 
     function completePendingAction() {
@@ -245,9 +335,21 @@ ApplicationWindow {
         onActivated: backend.openDialog()
     }
 
+    // OmaZettel: Ctrl+N makes a note when a notes folder is open; a new
+    // window moves to Ctrl+Shift+N.
     Shortcut {
         sequence: "Ctrl+N"
+        onActivated: win.newNote(vault.folderFor(win.currentPath()))
+    }
+
+    Shortcut {
+        sequence: "Ctrl+Shift+N"
         onActivated: backend.newWindow()
+    }
+
+    Shortcut {
+        sequence: "Ctrl+\\"
+        onActivated: vault.sidebarVisible = !vault.sidebarVisible
     }
 
     Shortcut {
@@ -391,6 +493,60 @@ ApplicationWindow {
         onReloadRequested: backend.reloadFromDisk()
     }
 
+    Dialogs.FolderDialog {
+        id: folderDialog
+        title: "Choose Notes Folder"
+        onAccepted: {
+            if (vault.openFolderUrl(selectedFolder))
+                vault.sidebarVisible = true;
+        }
+    }
+
+    NameDialog {
+        id: nameDialog
+        darkMode: win.darkMode
+        textScale: win.textScale
+        textColor: win.textColor
+        strongTextColor: win.textColor
+        activeButtonColor: backend.themeAccent
+        selectionFill: win.selectionFill
+        selectionTextColor: win.selectionTextColor
+        containerWidth: win.width
+        containerHeight: win.height
+        onClosed: editor.forceActiveFocus()
+    }
+
+    Sidebar {
+        id: sidebar
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: win.sidebarWidth
+        visible: win.sidebarShown
+        darkMode: win.darkMode
+        textScale: win.textScale
+        pageColor: win.pageColor
+        textColor: win.textColor
+        mutedColor: win.mutedColor
+        accentColor: backend.themeAccent
+        currentPath: vault.pathForUrl(backend.fileUrl)
+
+        onOpenRequested: function(fileUrl) { win.openNote(fileUrl); }
+        onNewNoteRequested: function(folder) { win.newNote(folder); }
+        onNewFolderRequested: function(folder) { win.newFolder(folder); }
+        onRenameRequested: function(path) { win.renameItem(path); }
+        onTrashRequested: function(path) { win.trashItem(path); }
+        onChooseFolderRequested: win.chooseFolder()
+    }
+
+    Connections {
+        target: backend
+        function onFileUrlChanged() {
+            vault.rememberLastNote(backend.fileUrl);
+            sidebar.reveal(win.currentPath());
+        }
+    }
+
     ShortcutsDialog {
         id: shortcutsDialog
         darkMode: win.darkMode
@@ -403,6 +559,7 @@ ApplicationWindow {
 
     Item {
         anchors.fill: parent
+        anchors.leftMargin: win.sidebarWidth
 
         Flickable {
             id: editorFlick

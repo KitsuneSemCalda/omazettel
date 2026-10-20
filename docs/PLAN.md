@@ -68,8 +68,8 @@ Estimates assume one person working with AI help.
 
 | # | Phase | Delivers | Estimate |
 |---|---|---|---|
-| 0 | Fork and rebrand | New name, binary, app ID, desktop file, icon, version. Upstream remote kept. Build and tests pass. | 1–2 days |
-| 1 | Notes folder and sidebar | `Vault`, `WelcomeView`, `Sidebar`; clicking a note opens it in place (autosave keeps this safe); create, rename, delete notes | ~1 week |
+| 0 ✅ | Fork and rebrand | New name, binary, app ID, desktop file, icon, version. Upstream remote kept. Build and tests pass. | 1–2 days |
+| 1 ✅ | Notes folder and sidebar | `Vault`, `WelcomeView`, `Sidebar`; clicking a note opens it in place (autosave keeps this safe); create, rename, delete notes | ~1 week |
 | 2 | Links | `NoteIndex`, wiki link highlighting, Ctrl+click to follow (creating missing notes), back/forward history, `[[` completion, backlinks panel, quick switcher | 1–1.5 weeks |
 | 3 | Search and tags | Search across notes, tag list and filter, outline panel | 3–5 days |
 | 4 | Pandoc export | `Exporter`, profiles, export dialog, status and error reporting | 3–5 days |
@@ -97,6 +97,16 @@ After version 1, in rough order of value:
   Test with about 5,000 notes before release.
 - **Live preview has limits:** the highlighter styles text but can't show images or
   tables inline in a `TextEdit`. Plan for that, or treat it as later work.
+
+## Progress
+
+- **Phase 0 (done, 2026-10-20):** renamed, relicensed GPL-3.0-or-later, builds, 109 upstream tests pass.
+- **Phase 1 (done, 2026-10-20):** `Vault` (src/vault.*), `Sidebar.qml`, `NameDialog.qml`,
+  `IconButton.qml`, and Backend additions in `src/backend_notes.cpp`
+  (`flushAutoSave`, `moveCurrentFile`, `followMovedFile`, `startNewDocument`).
+  Notes tests live in `tests/notes/` and run from `bin/test`.
+  Not yet: a full-window welcome screen (the sidebar's empty state covers it
+  for now) and drag-to-move in the tree.
 
 ## Suggested first step
 

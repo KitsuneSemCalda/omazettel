@@ -10,8 +10,18 @@ else
   QMAKE=qmake
 fi
 
+JOBS="$(nproc 2>/dev/null || echo 1)"
+
+# Upstream Omawrite's tests.
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 "$QMAKE" "$ROOT/tests/tests.pro"
-make -j"$(nproc 2>/dev/null || echo 1)"
+make -j"$JOBS"
 QT_QPA_PLATFORM=offscreen ./tst_omazettel
+
+# OmaZettel's notes tests.
+mkdir -p "$BUILD_DIR/notes"
+cd "$BUILD_DIR/notes"
+"$QMAKE" "$ROOT/tests/notes/notes.pro"
+make -j"$JOBS"
+QT_QPA_PLATFORM=offscreen ./tst_notes
