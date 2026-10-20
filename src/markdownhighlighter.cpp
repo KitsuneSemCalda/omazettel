@@ -207,6 +207,7 @@ void MarkdownHighlighter::highlightBlock(const QString &text) {
             || text.contains(QLatin1Char('~'))) {
             highlightInline(text);
         }
+        highlightZettel(text);
     }
     highlightSearch(text);
 }

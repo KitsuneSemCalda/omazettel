@@ -2,6 +2,11 @@
 // upstream Omawrite, so merges stay simple.
 
 #include "backend.h"
+#include "zettel.h"
+
+#include <QTextBlock>
+#include <QTextDocument>
+#include <QRegularExpression>
 
 #include <QDir>
 #include <QFile>
@@ -77,4 +82,40 @@ void Backend::startNewDocument() {
     setFileUrl(QUrl());
     setModified(false);
     setStatus(QString());
+}
+
+QString Backend::wikiLinkAt(int position) const {
+    if (!m_document)
+        return QString();
+    const QTextBlock block = m_document->findBlock(position);
+    if (!block.isValid())
+        return QString();
+    const int column = position - block.position();
+    for (const Zettel::WikiLink &link : Zettel::wikiLinks(block.text())) {
+        if (column >= link.start && column <= link.start + link.length)
+            return link.target;
+    }
+    return QString();
+}
+
+QVariantMap Backend::wikiQueryAt(int position) const {
+    if (!m_document || insideFence(position))
+        return {};
+    const QTextBlock block = m_document->findBlock(position);
+    if (!block.isValid())
+        return {};
+    const QString before = block.text().left(position - block.position());
+    static const QRegularExpression openRe(QStringLiteral("\\[\\[([^\\[\\]|#\\n]*)$"));
+    const QRegularExpressionMatch match = openRe.match(before);
+    if (!match.hasMatch())
+        return {};
+    // Not inside inline code.
+    for (const auto &range : Zettel::codeRanges(before + QStringLiteral("`"))) {
+        if (match.capturedStart() >= range.first && match.capturedStart() < range.second)
+            return {};
+    }
+    const QString after = block.text().mid(position - block.position());
+    return {{QStringLiteral("query"), match.captured(1)},
+            {QStringLiteral("start"), block.position() + int(match.capturedStart(1))},
+            {QStringLiteral("closed"), after.startsWith(QStringLiteral("]]"))}};
 }

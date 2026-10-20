@@ -107,6 +107,11 @@ public:
     Q_INVOKABLE bool moveCurrentFile(const QUrl &newUrl);
     Q_INVOKABLE void startNewDocument();
     Q_INVOKABLE void followMovedFile(const QUrl &newUrl);
+    // The [[wiki link]] target at a document position, or "".
+    Q_INVOKABLE QString wikiLinkAt(int position) const;
+    // The [[ query being typed before position on its line, or null when
+    // the caret is not inside an unfinished [[.
+    Q_INVOKABLE QVariantMap wikiQueryAt(int position) const;
 
 signals:
     void fileUrlChanged();

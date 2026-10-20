@@ -67,6 +67,8 @@ private:
     void highlightMarkers(const QString &text);
     void highlightInline(const QString &text);
     void highlightSearch(const QString &text);
+    // OmaZettel: [[wiki links]] and #tags (markdownhighlighter_notes.cpp).
+    void highlightZettel(const QString &text);
 
     bool m_darkMode = true;
     QString m_customBackground;

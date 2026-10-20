@@ -12,6 +12,7 @@ const QString recentSetting = QStringLiteral("notes/recentFolders");
 const QString lastNoteSetting = QStringLiteral("notes/lastNote");
 const QString sidebarVisibleSetting = QStringLiteral("notes/sidebarVisible");
 const QString sidebarWidthSetting = QStringLiteral("notes/sidebarWidth");
+const QString panelVisibleSetting = QStringLiteral("notes/panelVisible");
 const int maxRecentFolders = 8;
 const QStringList noteSuffixes{QStringLiteral("md"), QStringLiteral("markdown")};
 }
@@ -28,6 +29,7 @@ Vault::Vault(QObject *parent) : QObject(parent), m_model(new QFileSystemModel(th
     m_recentFolders = settings.value(recentSetting).toStringList();
     m_sidebarVisible = settings.value(sidebarVisibleSetting, true).toBool();
     m_sidebarWidth = settings.value(sidebarWidthSetting, 260).toInt();
+    m_panelVisible = settings.value(panelVisibleSetting, true).toBool();
 
     const QString saved = settings.value(folderSetting).toString();
     if (!saved.isEmpty() && QFileInfo(saved).isDir())
@@ -48,6 +50,14 @@ void Vault::setSidebarVisible(bool visible) {
     m_sidebarVisible = visible;
     QSettings().setValue(sidebarVisibleSetting, visible);
     emit sidebarVisibleChanged();
+}
+
+void Vault::setPanelVisible(bool visible) {
+    if (m_panelVisible == visible)
+        return;
+    m_panelVisible = visible;
+    QSettings().setValue(panelVisibleSetting, visible);
+    emit panelVisibleChanged();
 }
 
 void Vault::setSidebarWidth(int width) {
@@ -236,6 +246,7 @@ QString Vault::createNote(const QString &folder, const QString &title) {
         return QString();
     }
     setError(QString());
+    emit contentsChanged();
     return path;
 }
 
@@ -295,6 +306,7 @@ QString Vault::renamePath(const QString &path, const QString &newName) {
         setError(QStringLiteral("Could not rename %1.").arg(QFileInfo(from).fileName()));
         return QString();
     }
+    emit contentsChanged();
     return target;
 }
 
@@ -336,6 +348,7 @@ QString Vault::movePath(const QString &path, const QString &folder) {
         setError(QStringLiteral("Could not move %1.").arg(QFileInfo(from).fileName()));
         return QString();
     }
+    emit contentsChanged();
     return target;
 }
 
@@ -350,6 +363,7 @@ bool Vault::trashPath(const QString &path) {
         return false;
     }
     setError(QString());
+    emit contentsChanged();
     return true;
 }
 

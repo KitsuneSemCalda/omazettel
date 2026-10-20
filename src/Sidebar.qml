@@ -40,6 +40,15 @@ Rectangle {
     signal chooseFolderRequested()
     signal moveRequested(string path, string folder)
 
+    // "files" or "tags".
+    property string mode: "files"
+    property string selectedTag: ""
+
+    function showTag(tag) {
+        mode = "tags";
+        selectedTag = tag;
+    }
+
     onCurrentPathChanged: selectedPath = currentPath
 
     function scaled(pixels) { return Math.max(1, Math.round(pixels * textScale)); }
@@ -143,6 +152,166 @@ Rectangle {
         }
     }
 
+    // Files | Tags
+    Row {
+        id: tabs
+        objectName: "sidebarTabs"
+        visible: vault.isOpen
+        anchors.top: header.bottom
+        anchors.left: parent.left
+        anchors.topMargin: root.scaled(10)
+        anchors.leftMargin: root.scaled(14)
+        height: visible ? root.scaled(22) : 0
+        spacing: root.scaled(16)
+
+        Repeater {
+            model: [{ id: "files", label: "Files" }, { id: "tags", label: "Tags" }]
+            delegate: Label {
+                required property var modelData
+                text: modelData.label
+                color: root.mode === modelData.id ? root.textColor : root.mutedColor
+                font.family: "IBM Plex Mono"
+                font.pixelSize: root.scaled(12)
+                font.bold: root.mode === modelData.id
+                Rectangle {
+                    anchors.top: parent.bottom
+                    anchors.topMargin: root.scaled(3)
+                    width: parent.width
+                    height: 2
+                    color: root.accentColor
+                    visible: root.mode === parent.modelData.id
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    anchors.margins: -root.scaled(4)
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.mode = parent.modelData.id
+                }
+            }
+        }
+    }
+
+    // ── Tags ────────────────────────────────────────────────────────────────
+    ListView {
+        id: tagList
+        objectName: "tagList"
+        visible: vault.isOpen && root.mode === "tags"
+        anchors.top: tabs.bottom
+        anchors.bottom: errorLabel.visible ? errorLabel.top : parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.topMargin: root.scaled(12)
+        anchors.rightMargin: 1
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+        model: noteIndex.revision >= 0 ? noteIndex.tags() : []
+
+        header: Label {
+            visible: tagList.count === 0
+            height: visible ? implicitHeight : 0
+            width: tagList.width
+            leftPadding: root.scaled(14)
+            rightPadding: root.scaled(14)
+            wrapMode: Text.Wrap
+            text: "No tags yet. Write #tag in a note, or tags: [a, b] in its front matter."
+            color: root.mutedColor
+            font.family: "IBM Plex Mono"
+            font.pixelSize: root.scaled(11)
+        }
+
+        delegate: Column {
+            id: tagRow
+            required property var modelData
+            readonly property bool open: root.selectedTag.toLowerCase() === modelData.tag.toLowerCase()
+            width: tagList.width
+
+            Rectangle {
+                width: parent.width
+                height: root.scaled(28)
+                color: "transparent"
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.leftMargin: root.scaled(6)
+                    anchors.rightMargin: root.scaled(6)
+                    radius: root.scaled(4)
+                    color: tagRow.open ? root.selectedFill : (tagMouse.containsMouse ? root.hoverFill : "transparent")
+                }
+                IconButton {
+                    id: tagChevron
+                    x: root.scaled(10)
+                    anchors.verticalCenter: parent.verticalCenter
+                    iconName: tagRow.open ? "chevron-down" : "chevron-right"
+                    iconColor: root.mutedColor
+                    textScale: root.textScale * 0.8
+                }
+                Label {
+                    anchors.left: tagChevron.right
+                    anchors.leftMargin: root.scaled(6)
+                    anchors.right: tagCount.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "#" + tagRow.modelData.tag
+                    elide: Text.ElideRight
+                    color: root.accentColor
+                    font.family: "IBM Plex Mono"
+                    font.pixelSize: root.scaled(12)
+                }
+                Label {
+                    id: tagCount
+                    anchors.right: parent.right
+                    anchors.rightMargin: root.scaled(14)
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: tagRow.modelData.count
+                    color: root.mutedColor
+                    font.family: "IBM Plex Mono"
+                    font.pixelSize: root.scaled(11)
+                }
+                MouseArea {
+                    id: tagMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.selectedTag = tagRow.open ? "" : tagRow.modelData.tag
+                }
+            }
+
+            Repeater {
+                model: tagRow.open && noteIndex.revision >= 0 ? noteIndex.notesWithTag(tagRow.modelData.tag) : []
+                delegate: Rectangle {
+                    required property var modelData
+                    width: tagRow.width
+                    height: root.scaled(26)
+                    color: "transparent"
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.leftMargin: root.scaled(6)
+                        anchors.rightMargin: root.scaled(6)
+                        radius: root.scaled(4)
+                        color: modelData.path === root.currentPath ? root.currentFill
+                               : (taggedMouse.containsMouse ? root.hoverFill : "transparent")
+                    }
+                    Label {
+                        x: root.scaled(38)
+                        width: parent.width - root.scaled(50)
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: modelData.title
+                        elide: Text.ElideRight
+                        color: modelData.path === root.currentPath ? root.accentColor : root.textColor
+                        font.family: "IBM Plex Mono"
+                        font.pixelSize: root.scaled(12)
+                    }
+                    MouseArea {
+                        id: taggedMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.openRequested(vault.urlForPath(parent.modelData.path))
+                    }
+                }
+            }
+        }
+    }
+
     Menu {
         id: folderMenu
         MenuItem {
@@ -239,6 +408,7 @@ Rectangle {
         id: rootDrop
         objectName: "rootDropArea"
         anchors.fill: treeView
+        enabled: treeView.visible
         keys: ["omazettel/path"]
         onDropped: function(drop) {
             root.moveRequested(drop.source.path, vault.rootPath);
@@ -282,8 +452,8 @@ Rectangle {
     TreeView {
         id: treeView
         objectName: "notesTree"
-        visible: vault.isOpen
-        anchors.top: header.bottom
+        visible: vault.isOpen && root.mode === "files"
+        anchors.top: tabs.bottom
         anchors.bottom: errorLabel.visible ? errorLabel.top : parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right

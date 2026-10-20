@@ -38,7 +38,13 @@ ApplicationWindow {
     // what is left.
     readonly property bool sidebarShown: vault.sidebarVisible
     readonly property int sidebarWidth: sidebarShown ? Math.min(vault.sidebarWidth, Math.round(width * 0.5)) : 0
-    readonly property int contentWidth: width - sidebarWidth
+    readonly property bool panelShown: vault.isOpen && vault.panelVisible
+    readonly property int panelWidth: panelShown ? Math.min(scaledSize(280), Math.round(width * 0.3)) : 0
+    readonly property int contentWidth: width - sidebarWidth - panelWidth
+    // Notes visited, for Back (Alt+Left) and Forward (Alt+Right).
+    property var backStack: []
+    property var forwardStack: []
+    property bool navigatingHistory: false
     property bool closeConfirmed: false
     property bool searchOpen: false
     property bool searchUpdating: false
@@ -84,10 +90,96 @@ ApplicationWindow {
     function openNote(url) {
         if (vault.pathForUrl(url) === currentPath())
             return;
+        if (!navigatingHistory && currentPath().length > 0) {
+            backStack = backStack.concat([backend.fileUrl]).slice(-100);
+            forwardStack = [];
+        }
         if (backend.flushAutoSave())
             backend.open(url);
         else
             requestOpen(url);
+    }
+
+    function goBack() {
+        if (backStack.length === 0)
+            return;
+        var url = backStack[backStack.length - 1];
+        backStack = backStack.slice(0, -1);
+        if (currentPath().length > 0)
+            forwardStack = forwardStack.concat([backend.fileUrl]);
+        navigatingHistory = true;
+        openNote(url);
+        navigatingHistory = false;
+    }
+
+    function goForward() {
+        if (forwardStack.length === 0)
+            return;
+        var url = forwardStack[forwardStack.length - 1];
+        forwardStack = forwardStack.slice(0, -1);
+        if (currentPath().length > 0)
+            backStack = backStack.concat([backend.fileUrl]);
+        navigatingHistory = true;
+        openNote(url);
+        navigatingHistory = false;
+    }
+
+    // Opens the note a [[link]] names, making it (next to the current note)
+    // when there is none yet.
+    function followWikiLink(target) {
+        if (!vault.isOpen)
+            return;
+        var path = noteIndex.resolve(target, currentPath());
+        if (path.length === 0) {
+            path = vault.createNote(vault.folderFor(currentPath()), target);
+            if (path.length === 0)
+                return;
+            noteIndex.updateFile(path);
+        }
+        openNote(vault.urlForPath(path));
+    }
+
+    // Ctrl+click or Ctrl+Enter: a [[wiki link]] opens its note, a web link
+    // opens in the browser, a link to a local .md file opens here.
+    function followLinkAt(position) {
+        var target = backend.wikiLinkAt(position);
+        if (target.length > 0) {
+            followWikiLink(target);
+            return true;
+        }
+        var url = backend.linkUrlAt(position);
+        if (url.length === 0)
+            return false;
+        if (/^[a-z][a-z0-9+.-]*:/i.test(url) && !/^file:/i.test(url)) {
+            Qt.openUrlExternally(url);
+            return true;
+        }
+        var local = decodeURIComponent(url.replace(/^file:\/\//i, "").split("#")[0]);
+        if (local.charAt(0) !== "/")
+            local = vault.folderFor(currentPath()) + "/" + local;
+        openNote(vault.urlForPath(local));
+        return true;
+    }
+
+    // Shows or updates the [[ completer at the caret.
+    function updateLinkCompletion() {
+        if (!vault.isOpen || editor.selectionStart !== editor.selectionEnd) {
+            linkCompleter.close();
+            return;
+        }
+        var context = backend.wikiQueryAt(editor.cursorPosition);
+        if (context.query === undefined) {
+            linkCompleter.close();
+            return;
+        }
+        linkCompleter.query = context.query;
+        linkCompleter.queryStart = context.start;
+        linkCompleter.closedLink = context.closed;
+        var caret = editor.cursorRectangle;
+        linkCompleter.x = Math.min(caret.x, editor.width - linkCompleter.width);
+        linkCompleter.y = caret.y + caret.height + 4;
+        if (!linkCompleter.opened)
+            linkCompleter.open();
     }
 
     function newNote(folder) {
@@ -355,8 +447,15 @@ ApplicationWindow {
         onActivated: backend.resetTextSize()
     }
 
+    // OmaZettel: Ctrl+O goes to a note in the notes folder; opening any
+    // file moves to Ctrl+Shift+O.
     Shortcut {
         sequence: "Ctrl+O"
+        onActivated: vault.isOpen ? quickSwitcher.open() : backend.openDialog()
+    }
+
+    Shortcut {
+        sequence: "Ctrl+Shift+O"
         onActivated: backend.openDialog()
     }
 
@@ -375,6 +474,26 @@ ApplicationWindow {
     Shortcut {
         sequence: "Ctrl+\\"
         onActivated: vault.sidebarVisible = !vault.sidebarVisible
+    }
+
+    Shortcut {
+        sequence: "Ctrl+Shift+B"
+        onActivated: vault.panelVisible = !vault.panelVisible
+    }
+
+    Shortcut {
+        sequence: "Alt+Left"
+        onActivated: win.goBack()
+    }
+
+    Shortcut {
+        sequence: "Alt+Right"
+        onActivated: win.goForward()
+    }
+
+    Shortcut {
+        sequences: ["Ctrl+Return", "Ctrl+Enter"]
+        onActivated: win.followLinkAt(editor.cursorPosition)
     }
 
     Shortcut {
@@ -565,6 +684,61 @@ ApplicationWindow {
         onChooseFolderRequested: win.chooseFolder()
     }
 
+    NotePanel {
+        id: notePanel
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: win.panelWidth
+        visible: win.panelShown
+        darkMode: win.darkMode
+        textScale: win.textScale
+        pageColor: win.pageColor
+        textColor: win.textColor
+        mutedColor: win.mutedColor
+        accentColor: backend.themeAccent
+        currentPath: vault.pathForUrl(backend.fileUrl)
+        onOpenRequested: function(fileUrl) { win.openNote(fileUrl); }
+        onTagRequested: function(tag) {
+            vault.sidebarVisible = true;
+            sidebar.showTag(tag);
+        }
+    }
+
+    NotePicker {
+        id: quickSwitcher
+        objectName: "quickSwitcher"
+        hasField: true
+        darkMode: win.darkMode
+        textScale: win.textScale
+        textColor: win.textColor
+        mutedColor: win.mutedColor
+        accentColor: backend.themeAccent
+        selectionFill: win.selectionFill
+        selectionTextColor: win.selectionTextColor
+        x: Math.round((win.width - width) / 2)
+        y: Math.round(win.height * 0.15)
+        onPicked: function(note, typed) {
+            if (note) {
+                win.openNote(vault.urlForPath(note.path));
+            } else if (typed.length > 0) {
+                var path = vault.createNote(sidebar.targetFolder, typed);
+                if (path.length > 0) {
+                    noteIndex.updateFile(path);
+                    win.openNote(vault.urlForPath(path));
+                }
+            }
+        }
+        onClosed: editor.forceActiveFocus()
+    }
+
+    Connections {
+        target: backend
+        function onSaveSucceeded() {
+            noteIndex.updateFile(win.currentPath());
+        }
+    }
+
     Connections {
         target: backend
         function onFileUrlChanged() {
@@ -586,6 +760,7 @@ ApplicationWindow {
     Item {
         anchors.fill: parent
         anchors.leftMargin: win.sidebarWidth
+        anchors.rightMargin: win.panelWidth
 
         Flickable {
             id: editorFlick
@@ -845,7 +1020,10 @@ ApplicationWindow {
                     color: win.textColor
                 }
                 onCursorRectangleChanged: editorFlick.ensureCursorVisible()
-                onCursorPositionChanged: backend.setCaretPosition(cursorPosition)
+                onCursorPositionChanged: {
+                    backend.setCaretPosition(cursorPosition);
+                    win.updateLinkCompletion();
+                }
                 onFontChanged: backend.documentFontChanged()
 
                 // One edit command, so a single undo takes the change back.
@@ -1104,6 +1282,11 @@ ApplicationWindow {
 
                 Keys.priority: Keys.BeforeItem
                 Keys.onPressed: function(event) {
+                    // OmaZettel: the [[ completer takes its navigation keys.
+                    if (linkCompleter.handleKey(event)) {
+                        event.accepted = true;
+                        return;
+                    }
                     var pasteKey = (event.key === Qt.Key_V)
                         && (event.modifiers & Qt.ControlModifier)
                         && !(event.modifiers & (Qt.AltModifier | Qt.MetaModifier | Qt.ShiftModifier));
@@ -1224,6 +1407,33 @@ ApplicationWindow {
                         elide: Text.ElideMiddle
                     }
                     width: Math.min(implicitWidth, win.width - 32)
+                }
+
+                // OmaZettel: Ctrl+click follows a link.
+                TapHandler {
+                    acceptedModifiers: Qt.ControlModifier
+                    onTapped: function(eventPoint) {
+                        win.followLinkAt(editor.positionAt(eventPoint.position.x, eventPoint.position.y));
+                    }
+                }
+
+                NotePicker {
+                    id: linkCompleter
+                    objectName: "linkCompleter"
+                    hasField: false
+                    property int queryStart: 0
+                    property bool closedLink: false
+                    darkMode: win.darkMode
+                    textScale: win.textScale
+                    textColor: win.textColor
+                    mutedColor: win.mutedColor
+                    accentColor: backend.themeAccent
+                    onPicked: function(note, typed) {
+                        if (!note)
+                            return;
+                        var end = editor.cursorPosition + (closedLink ? 2 : 0);
+                        EditorMutations.replaceRange(editor, queryStart, end, note.name + "]]");
+                    }
                 }
 
                 Component.onCompleted: {

@@ -12,7 +12,9 @@
 #include <QStandardPaths>
 
 #include "backend.h"
+#include "noteindex.h"
 #include "vault.h"
+#include "zettel.h"
 
 namespace {
 QString readFile(const QString &path) {
@@ -319,6 +321,254 @@ private slots:
         QCOMPARE(readFile(path), QStringLiteral("body"));
     }
 
+
+    // ── Zettel syntax ───────────────────────────────────────────────────────
+
+    void findsWikiLinks() {
+        const auto links = Zettel::wikiLinks(QStringLiteral("See [[Index]], [[Projects/Plan#Goals|the plan]] and `[[code]]`."));
+        QCOMPARE(links.size(), 2);
+        QCOMPARE(links.at(0).target, QStringLiteral("Index"));
+        QCOMPARE(links.at(0).start, 4);
+        QCOMPARE(links.at(0).length, 9);
+        QCOMPARE(links.at(1).target, QStringLiteral("Projects/Plan"));
+        QCOMPARE(links.at(1).heading, QStringLiteral("Goals"));
+        QCOMPARE(links.at(1).label, QStringLiteral("the plan"));
+        QVERIFY(Zettel::wikiLinks(QStringLiteral("[[ ]] [[]] [single]")).isEmpty());
+    }
+
+    void findsTags() {
+        const auto found = Zettel::tags(QStringLiteral("#idea about #project/client-a, not#this, #123, `#code`, https://x.com/#frag [[Note#Heading]] #ok."));
+        QStringList names;
+        for (const auto &tag : found)
+            names << tag.tag;
+        QCOMPARE(names, (QStringList{QStringLiteral("idea"), QStringLiteral("project/client-a"), QStringLiteral("ok")}));
+        QCOMPARE(found.first().start, 0);
+        QCOMPARE(found.first().length, 5);
+        QVERIFY(Zettel::tags(QStringLiteral("# Heading")).isEmpty());
+        QVERIFY(Zettel::tags(QStringLiteral("## Heading")).isEmpty());
+        QCOMPARE(Zettel::tags(QStringLiteral("#Über")).first().tag, QStringLiteral("Über"));
+    }
+
+    void readsFrontMatterTags() {
+        QCOMPARE(Zettel::frontMatterTags(QStringLiteral("tags: [a, \"b c\", #d]")),
+                 (QStringList{QStringLiteral("a"), QStringLiteral("b c"), QStringLiteral("d")}));
+        QCOMPARE(Zettel::frontMatterTags(QStringLiteral("tags: one two")),
+                 (QStringList{QStringLiteral("one"), QStringLiteral("two")}));
+        QCOMPARE(Zettel::frontMatterTags(QStringLiteral("title: x\ntags:\n  - one\n  - 'two'\nother: y")),
+                 (QStringList{QStringLiteral("one"), QStringLiteral("two")}));
+        QCOMPARE(Zettel::frontMatterTags(QStringLiteral("keywords: alpha, beta")),
+                 (QStringList{QStringLiteral("alpha"), QStringLiteral("beta")}));
+    }
+
+    void parsesANote() {
+        const Zettel::ParsedNote note = Zettel::parse(QStringLiteral(
+            "---\ntitle: \"Front Title\"\ntags: [meta]\n---\n# Heading\n\nText #idea and [[Other]].\n"
+            "```\n#notatag [[NotALink]]\n```\nMore #Idea and #new.\n"));
+        QCOMPARE(note.title, QStringLiteral("Front Title"));
+        QCOMPARE(note.tags, (QStringList{QStringLiteral("meta"), QStringLiteral("idea"), QStringLiteral("new")}));
+        QCOMPARE(note.links.size(), 1);
+        QCOMPARE(note.links.first().target, QStringLiteral("Other"));
+        QCOMPARE(note.links.first().context, QStringLiteral("Text #idea and [[Other]]."));
+        QCOMPARE(Zettel::parse(QStringLiteral("no heading")).title, QString());
+        QCOMPARE(Zettel::parse(QStringLiteral("intro\n# Late Title #\n")).title, QStringLiteral("Late Title"));
+    }
+
+    // ── Note index ──────────────────────────────────────────────────────────
+
+    void indexesLinksBacklinksAndTags() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("Index.md")), "# Index\n\nStart at [[Ideas]] and [[Projects/Plan]]. #hub\n");
+        writeFile(dir.filePath(QStringLiteral("Ideas.md")), "# Ideas\n\nBack to [[index]]. #idea #Hub\n");
+        writeFile(dir.filePath(QStringLiteral("Projects/Plan.md")), "---\ntags: [project]\n---\n# The Plan\n\n[[Ideas]] [[Missing]]\n");
+        writeFile(dir.filePath(QStringLiteral("Archive/Plan.md")), "# Old plan\n");
+        writeFile(dir.filePath(QStringLiteral(".hidden/Secret.md")), "[[Index]]\n");
+
+        NoteIndex index;
+        index.setRoot(dir.path());
+        index.rescanNow();
+        QCOMPARE(index.noteCount(), 4);
+
+        const QString indexPath = dir.filePath(QStringLiteral("Index.md"));
+        const QString ideas = dir.filePath(QStringLiteral("Ideas.md"));
+        const QString plan = dir.filePath(QStringLiteral("Projects/Plan.md"));
+        QCOMPARE(index.resolve(QStringLiteral("ideas"), indexPath), ideas);
+        QCOMPARE(index.resolve(QStringLiteral("Ideas.md"), indexPath), ideas);
+        QCOMPARE(index.resolve(QStringLiteral("Projects/Plan"), indexPath), plan);
+        QCOMPARE(index.resolve(QStringLiteral("The Plan"), indexPath), plan);
+        QCOMPARE(index.resolve(QStringLiteral("Missing"), indexPath), QString());
+        // Two notes named Plan: the one in the linking note's folder wins.
+        QCOMPARE(index.resolve(QStringLiteral("Plan"), dir.filePath(QStringLiteral("Archive/x.md"))),
+                 dir.filePath(QStringLiteral("Archive/Plan.md")));
+
+        const QVariantList back = index.backlinks(ideas);
+        QCOMPARE(back.size(), 2);
+        QCOMPARE(back.at(0).toMap().value(QStringLiteral("title")).toString(), QStringLiteral("Index"));
+        QVERIFY(back.at(0).toMap().value(QStringLiteral("context")).toString().contains(QStringLiteral("[[Ideas]]")));
+        QCOMPARE(index.backlinks(indexPath).size(), 1);
+        QCOMPARE(index.titleOf(plan), QStringLiteral("The Plan"));
+
+        // Tags group regardless of case and keep the first spelling.
+        const QVariantList tags = index.tags();
+        QCOMPARE(tags.size(), 3);
+        // Ideas.md comes before Index.md, so its spelling wins.
+        QCOMPARE(tags.at(0).toMap().value(QStringLiteral("tag")).toString(), QStringLiteral("Hub"));
+        QCOMPARE(tags.at(0).toMap().value(QStringLiteral("count")).toInt(), 2);
+        QCOMPARE(index.notesWithTag(QStringLiteral("#HUB")).size(), 2);
+        QCOMPARE(index.tagsOf(plan), QStringList{QStringLiteral("project")});
+
+        // Saving a note updates it alone.
+        QSignalSpy changed(&index, &NoteIndex::changed);
+        writeFile(ideas, "# Ideas\n\nNo links now. #fresh\n");
+        index.updateFile(ideas);
+        QCOMPARE(changed.count(), 1);
+        QCOMPARE(index.backlinks(indexPath).size(), 0);
+        QCOMPARE(index.notesWithTag(QStringLiteral("fresh")).size(), 1);
+        QFile::remove(ideas);
+        index.updateFile(ideas);
+        QCOMPARE(index.noteCount(), 3);
+    }
+
+    void rescansInTheBackground() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("A.md")), "# A\n");
+        NoteIndex index;
+        QSignalSpy changed(&index, &NoteIndex::changed);
+        index.setRoot(dir.path());
+        QTRY_COMPARE(index.noteCount(), 1);
+        writeFile(dir.filePath(QStringLiteral("B.md")), "[[A]]\n");
+        index.scheduleRescan();
+        QTRY_COMPARE(index.noteCount(), 2);
+        QCOMPARE(index.backlinks(dir.filePath(QStringLiteral("A.md"))).size(), 1);
+        index.setRoot(QString());
+        QCOMPARE(index.noteCount(), 0);
+    }
+
+    // ── Links in the window ─────────────────────────────────────────────────
+
+    void followsAndCreatesWikiLinks() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("Start.md")), "# Start\n\nGo to [[Target]] or [[New idea]].\n");
+        writeFile(dir.filePath(QStringLiteral("Sub/Target.md")), "# Target\n");
+        Backend backend;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+        QVERIFY(window);
+        const QUrl start = QUrl::fromLocalFile(dir.filePath(QStringLiteral("Start.md")));
+        QMetaObject::invokeMethod(window.get(), "openNote", Q_ARG(QVariant, start));
+
+        // The position of a character inside [[Target]].
+        const int inTarget = QStringLiteral("# Start\n\nGo to [[Tar").size();
+        QCOMPARE(backend.wikiLinkAt(inTarget), QStringLiteral("Target"));
+        QVariant handled;
+        QMetaObject::invokeMethod(window.get(), "followLinkAt", Q_RETURN_ARG(QVariant, handled), Q_ARG(QVariant, inTarget));
+        QVERIFY(handled.toBool());
+        QCOMPARE(backend.fileUrl(), QUrl::fromLocalFile(dir.filePath(QStringLiteral("Sub/Target.md"))));
+
+        // Back returns to the start note.
+        QMetaObject::invokeMethod(window.get(), "goBack");
+        QCOMPARE(backend.fileUrl(), start);
+        QMetaObject::invokeMethod(window.get(), "goForward");
+        QCOMPARE(backend.fileUrl(), QUrl::fromLocalFile(dir.filePath(QStringLiteral("Sub/Target.md"))));
+        QMetaObject::invokeMethod(window.get(), "goBack");
+
+        // A link to a note that does not exist yet makes it beside this one.
+        const int inNew = QStringLiteral("# Start\n\nGo to [[Target]] or [[New").size();
+        QMetaObject::invokeMethod(window.get(), "followLinkAt", Q_RETURN_ARG(QVariant, handled), Q_ARG(QVariant, inNew));
+        const QString created = dir.filePath(QStringLiteral("New idea.md"));
+        QVERIFY(QFile::exists(created));
+        QCOMPARE(backend.fileUrl(), QUrl::fromLocalFile(created));
+        QCOMPARE(readFile(created), QStringLiteral("# New idea\n\n"));
+    }
+
+    void completesWikiLinks() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("Draft.md")), "# Draft\n\n");
+        writeFile(dir.filePath(QStringLiteral("Zettelkasten method.md")), "# Z\n");
+        writeFile(dir.filePath(QStringLiteral("Other.md")), "# O\n");
+        Backend backend;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+        QVERIFY(window);
+        QMetaObject::invokeMethod(window.get(), "openNote",
+                                  Q_ARG(QVariant, QUrl::fromLocalFile(dir.filePath(QStringLiteral("Draft.md")))));
+
+        auto *editor = window->findChild<QQuickItem *>(QStringLiteral("sourceEditor"));
+        auto *completer = window->findChild<QObject *>(QStringLiteral("linkCompleter"));
+        QVERIFY(editor && completer);
+        editor->setProperty("text", QStringLiteral("# Draft\n\nSee [[zett"));
+        editor->setProperty("cursorPosition", editor->property("length"));
+        QTRY_VERIFY(completer->property("opened").toBool());
+        QCOMPARE(completer->property("query").toString(), QStringLiteral("zett"));
+        const QVariantList results = completer->property("results").toList();
+        QVERIFY(!results.isEmpty());
+        QCOMPARE(results.first().toMap().value(QStringLiteral("name")).toString(), QStringLiteral("Zettelkasten method"));
+
+        QMetaObject::invokeMethod(completer, "accept");
+        QCOMPARE(editor->property("text").toString(), QStringLiteral("# Draft\n\nSee [[Zettelkasten method]]"));
+        QTRY_VERIFY(!completer->property("opened").toBool());
+
+        // Not inside code, and closed once the link is finished.
+        editor->setProperty("text", QStringLiteral("`[[zett"));
+        editor->setProperty("cursorPosition", editor->property("length"));
+        QTest::qWait(50);
+        QVERIFY(!completer->property("opened").toBool());
+    }
+
+    void quickSwitcherFindsAndCreatesNotes() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("Alpha.md")), "# Alpha\n");
+        writeFile(dir.filePath(QStringLiteral("Projects/Beta plan.md")), "# Beta\n");
+        Backend backend;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+        auto *switcher = window->findChild<QObject *>(QStringLiteral("quickSwitcher"));
+        QVERIFY(switcher);
+
+        switcher->setProperty("query", QStringLiteral("bpl"));
+        QCOMPARE(switcher->property("results").toList().first().toMap().value(QStringLiteral("name")).toString(),
+                 QStringLiteral("Beta plan"));
+        QMetaObject::invokeMethod(switcher, "accept");
+        QCOMPARE(backend.fileUrl(), QUrl::fromLocalFile(dir.filePath(QStringLiteral("Projects/Beta plan.md"))));
+
+        switcher->setProperty("query", QStringLiteral("Brand new"));
+        QCOMPARE(switcher->property("results").toList().size(), 0);
+        QMetaObject::invokeMethod(switcher, "accept");
+        // Made in the selected folder, which follows the open note.
+        QVERIFY(QFile::exists(dir.filePath(QStringLiteral("Projects/Brand new.md"))));
+        QCOMPARE(backend.fileUrl(), QUrl::fromLocalFile(dir.filePath(QStringLiteral("Projects/Brand new.md"))));
+    }
+
+    void panelShowsBacklinksAndTags() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("Hub.md")), "# Hub\n\n#central #topic\n");
+        writeFile(dir.filePath(QStringLiteral("Spoke.md")), "# Spoke\n\nUp to [[Hub]].\n");
+        Backend backend;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        vault.setPanelVisible(true);
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+        auto *panel = window->findChild<QQuickItem *>(QStringLiteral("notePanel"));
+        QVERIFY(panel && panel->isVisible());
+        QMetaObject::invokeMethod(window.get(), "openNote",
+                                  Q_ARG(QVariant, QUrl::fromLocalFile(dir.filePath(QStringLiteral("Hub.md")))));
+        QCOMPARE(panel->property("backlinks").toList().size(), 1);
+        QCOMPARE(panel->property("noteTags").toStringList(), (QStringList{QStringLiteral("central"), QStringLiteral("topic")}));
+        QCOMPARE(window->property("contentWidth").toInt(),
+                 window->property("width").toInt() - window->property("sidebarWidth").toInt()
+                     - window->property("panelWidth").toInt());
+
+        vault.setPanelVisible(false);
+        QVERIFY(!panel->isVisible());
+        QCOMPARE(window->property("panelWidth").toInt(), 0);
+    }
+
     // ── The window ──────────────────────────────────────────────────────────
 
     void sidebarOpensNotesInPlace() {
@@ -496,6 +746,10 @@ private:
         const QString mainQmlPath = QFINDTESTDATA("../../src/Main.qml");
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), &vault);
+        m_windowIndex = std::make_unique<NoteIndex>();
+        m_windowIndex->setRoot(vault.rootPath());
+        m_windowIndex->rescanNow();
+        engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_windowIndex.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         if (!component.isReady()) {
             qWarning() << component.errorString();
@@ -509,6 +763,7 @@ private:
 
     QTemporaryDir m_settingsDirectory;
     QQmlEngine m_engine;
+    std::unique_ptr<NoteIndex> m_windowIndex;
 };
 
 QTEST_MAIN(NotesTest)

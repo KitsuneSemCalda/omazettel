@@ -22,6 +22,7 @@ class Vault : public QObject {
     Q_PROPERTY(bool sidebarVisible READ sidebarVisible WRITE setSidebarVisible NOTIFY sidebarVisibleChanged)
     Q_PROPERTY(int sidebarWidth READ sidebarWidth WRITE setSidebarWidth NOTIFY sidebarWidthChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY lastErrorChanged)
+    Q_PROPERTY(bool panelVisible READ panelVisible WRITE setPanelVisible NOTIFY panelVisibleChanged)
 
 public:
     explicit Vault(QObject *parent = nullptr);
@@ -37,6 +38,8 @@ public:
     int sidebarWidth() const { return m_sidebarWidth; }
     void setSidebarWidth(int width);
     QString lastError() const { return m_lastError; }
+    bool panelVisible() const { return m_panelVisible; }
+    void setPanelVisible(bool visible);
 
     // Opening and closing the notes folder.
     Q_INVOKABLE bool openFolder(const QString &path);
@@ -86,6 +89,9 @@ signals:
     void sidebarVisibleChanged();
     void sidebarWidthChanged();
     void lastErrorChanged();
+    void panelVisibleChanged();
+    // Notes or folders were created, renamed, moved or trashed.
+    void contentsChanged();
 
 private:
     void setError(const QString &error);
@@ -98,4 +104,5 @@ private:
     bool m_sidebarVisible = true;
     int m_sidebarWidth = 260;
     QString m_lastError;
+    bool m_panelVisible = true;
 };

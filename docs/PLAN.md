@@ -70,9 +70,9 @@ Estimates assume one person working with AI help.
 |---|---|---|---|
 | 0 ✅ | Fork and rebrand | New name, binary, app ID, desktop file, icon, version. Upstream remote kept. Build and tests pass. | 1–2 days |
 | 1 ✅ | Notes folder and sidebar | `Vault`, `WelcomeView`, `Sidebar`; clicking a note opens it in place (autosave keeps this safe); create, rename, delete notes | ~1 week |
-| 2 | Links | `NoteIndex`, wiki link highlighting, Ctrl+click to follow (creating missing notes), back/forward history, `[[` completion, backlinks panel, quick switcher | 1–1.5 weeks |
-| 3 | Search and tags | Search across notes, tag list and filter, outline panel | 3–5 days |
-| 4 | Pandoc export | `Exporter`, profiles, export dialog, status and error reporting | 3–5 days |
+| 2 ✅ | Links and tags | `NoteIndex`, wiki link highlighting, Ctrl+click to follow (creating missing notes), back/forward history, `[[` completion, backlinks panel, quick switcher | 1–1.5 weeks |
+| 3 | Export and templates | Pandoc export profiles, custom templates and reference documents (see below) | 1–1.5 weeks |
+| 4 | Search and outline | Search across notes, outline panel (tags moved into Phase 2) | 3–5 days |
 | 5 | Polish and packaging | Command palette, settings, PKGBUILD, README, screenshots, tests for each new class | ~1 week |
 | | **Version 1 total** | | **~4–6 weeks** |
 
@@ -106,8 +106,46 @@ After version 1, in rough order of value:
   (`flushAutoSave`, `moveCurrentFile`, `followMovedFile`, `startNewDocument`).
   Notes tests live in `tests/notes/` and run from `bin/test`.
   Not yet: a full-window welcome screen (the sidebar's empty state covers it
-  for now) and drag-to-move in the tree.
+  for now).
+- **Sidebar fixes (done, 2026-10-20):** new notes go in the clicked folder;
+  drag notes and folders between folders (`Vault::movePath`).
+- **Phase 2 (done, 2026-10-20), with tags pulled forward from Phase 3:**
+  `src/zettel.*` (shared parser: wiki links, tags, front matter),
+  `src/noteindex.*` (background index: resolve, backlinks, tags, notes),
+  highlighting in `src/markdownhighlighter_notes.cpp`, `NotePanel.qml`
+  (tags + backlinks), `NotePicker.qml` (quick switcher and `[[` completer),
+  a Tags tab in the sidebar, Ctrl+click / Ctrl+Enter to follow, back and forward.
+  Later: show links to missing notes dimmer; rename a note and update links to it.
 
+## Export templates (requested 2026-10-20, next phase)
+
+Modelled on Zettlr's custom templates and reference documents
+(docs.zettlr.com/en/export/custom-templates.html), which map directly onto
+pandoc's own `--defaults` files, so OmaZettel can use pandoc as is:
+
+- **Profiles** are pandoc defaults files in `<notes>/.omazettel/export/*.yaml`,
+  for example `PDF (XeLaTeX).yaml` with `to: pdf`, `pdf-engine: xelatex`,
+  `template: ../templates/letter.tex`, plus any pandoc option and `variables:`.
+  OmaZettel ships starter profiles (PDF, Word, ODT, HTML, LaTeX) and copies
+  them in the first time you export.
+- **Templates** (`.tex`, `.html`, …) and **reference documents** (`.docx`,
+  `.odt`, `.pptx`) live in `<notes>/.omazettel/templates/`. "New template from
+  pandoc's default" runs `pandoc --print-default-template` or
+  `--print-default-data-file reference.docx` so you start from something that works.
+- A **Templates** screen lists profiles, templates and reference documents;
+  opens text ones in the editor (or VS Code) and reference documents in
+  LibreOffice or Word; duplicates and renames them.
+- **Export dialog** (Ctrl+Shift+E): pick a profile, output path; per-note
+  overrides from the note's front matter (title, author, date, any variable),
+  since pandoc reads those itself. `[[links]]` are turned into normal text or
+  links first (pandoc's `wikilinks_title_after_pipe` extension).
+- Because profiles are plain pandoc files, the same export works from a
+  terminal: `pandoc -d .omazettel/export/PDF.yaml note.md -o note.pdf`.
+
+Phase order from here: 3 = export and templates, 4 = search across notes and
+outline, 5 = polish and packaging.
+
+## Suggested first step
 ## Suggested first step
 
 Phase 0 and the start of Phase 1: rename, build, and get a working notes sidebar that

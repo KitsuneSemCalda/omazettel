@@ -7,9 +7,9 @@ OmaZettel is an independent fork of [Omawrite](https://github.com/omacom/omawrit
 by David Heinemeier Hansson. It is not made or endorsed by Omacom or the
 Omarchy project.
 
-> **Status: early development (0.1.0).** The notes folder sidebar works.
-> Still to come: `[[wiki links]]` and backlinks, search across notes, tags
-> and pandoc export. See `docs/PLAN.md`.
+> **Status: early development (0.1.0).** Working: the notes folder sidebar,
+> `[[wiki links]]`, backlinks and tags. Still to come: pandoc export with
+> custom templates, and search across notes. See `docs/PLAN.md`.
 
 ## Notes folder
 
@@ -22,8 +22,30 @@ keep editing the same folder in VS Code, track it with git or run pandoc on it.
   first, the same way auto-save would have saved it.
 - Right-click a note or folder for New note here, New folder here, Rename and
   Move to trash. Trashed notes go to the desktop trash, not deleted outright.
+- Drag a note or folder onto a folder to move it there, or onto the empty
+  space below the tree to move it to the top. Click a folder first to make
+  new notes in it.
 - Drag the sidebar's right edge to resize it.
 - OmaZettel remembers the folder, recent folders and the last open note.
+
+## Links and tags
+
+- Link notes with `[[Note name]]`. `[[folder/Note]]`, `[[Note#Heading]]` and
+  `[[Note|label]]` work too. Typing `[[` suggests notes; Up, Down and Enter
+  pick one.
+- Ctrl+click a link, or put the caret in it and press Ctrl+Enter, to open it.
+  A link to a note that doesn't exist yet creates it next to the current
+  note. Web links open in the browser. Alt+Left and Alt+Right go back and
+  forward.
+- Tag notes with `#tag` (nested tags like `#project/client` work), or with
+  `tags: [a, b]` or `keywords:` in YAML front matter.
+- The right panel (Ctrl+Shift+B) shows the open note's tags and its
+  backlinks: every note that links to it, with the line it does so on.
+- The sidebar's Tags tab lists every tag with its count; open one to see its
+  notes.
+- Ctrl+O jumps to any note by name; Enter on a name with no match creates it.
+- The index rescans after changes in the sidebar, on save, and whenever you
+  come back to the window, so edits made in other apps show up too.
 
 ## Install
 
@@ -39,7 +61,8 @@ There is no package release yet. Build from source as described in
 
 - `Ctrl+S` saves. Unsaved documents use the XDG desktop portal file picker.
 - `Ctrl+Shift+S` saves as.
-- `Ctrl+O` opens a Markdown file through the portal picker.
+- `Ctrl+O` goes to a note in the notes folder (or opens a file when no folder is open).
+- `Ctrl+Shift+O` opens any Markdown file through the portal picker.
 - `Ctrl+P` opens the system print dialog.
 - `Ctrl+N` makes a new note in the notes folder.
 - `Ctrl+Shift+N` opens a new OmaZettel window.

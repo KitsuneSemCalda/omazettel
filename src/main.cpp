@@ -13,6 +13,7 @@
 #include "backend.h"
 #include "cli.h"
 #include "systemtheme.h"
+#include "noteindex.h"
 #include "vault.h"
 
 #define OMAZETTEL_VERSION "0.1.0"
@@ -77,6 +78,19 @@ int main(int argc, char *argv[]) {
     // application names are set, since it reads its settings on creation,
     // and before the engine, so it outlives the interface that uses it.
     Vault vault(&app);
+    // The note index follows the notes folder, rescans after the sidebar
+    // changes files and whenever the app comes back to the front (to pick up
+    // edits made elsewhere, such as in VS Code).
+    NoteIndex noteIndex(&app);
+    noteIndex.setRoot(vault.rootPath());
+    QObject::connect(&vault, &Vault::rootPathChanged, &noteIndex,
+                     [&vault, &noteIndex]() { noteIndex.setRoot(vault.rootPath()); });
+    QObject::connect(&vault, &Vault::contentsChanged, &noteIndex, &NoteIndex::scheduleRescan);
+    QObject::connect(&app, &QGuiApplication::applicationStateChanged, &noteIndex,
+                     [&noteIndex](Qt::ApplicationState state) {
+                         if (state == Qt::ApplicationActive)
+                             noteIndex.scheduleRescan();
+                     });
 
     QQmlApplicationEngine engine;
     QObject::connect(&engine, &QQmlApplicationEngine::warnings, &app,
@@ -86,6 +100,7 @@ int main(int argc, char *argv[]) {
     });
     engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
     engine.rootContext()->setContextProperty(QStringLiteral("vault"), &vault);
+    engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), &noteIndex);
 
     engine.load(QUrl(QStringLiteral("qrc:/Main.qml")));
     if (engine.rootObjects().isEmpty()) {
