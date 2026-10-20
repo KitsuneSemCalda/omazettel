@@ -4,9 +4,9 @@
 
 QString Cli::usage() {
     return QStringLiteral(
-        "Usage: omawrite [FILE]\n"
+        "Usage: omazettel [FILE]\n"
         "\n"
-        "Opens FILE, a Markdown file, or an empty document without one. Omawrite\n"
+        "Opens FILE, a Markdown file, or an empty document without one. OmaZettel\n"
         "is a graphical app and keeps running until its window is closed.\n"
         "\n"
         "Options:\n"
@@ -24,7 +24,7 @@ std::optional<int> Cli::handleArguments(const QStringList &arguments, const QStr
         return 0;
     }
     if (first == QLatin1String("-v") || first == QLatin1String("--version")) {
-        QTextStream(stdout) << QStringLiteral("omawrite %1\n").arg(version);
+        QTextStream(stdout) << QStringLiteral("omazettel %1\n").arg(version);
         return 0;
     }
 

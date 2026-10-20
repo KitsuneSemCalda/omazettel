@@ -1,19 +1,26 @@
-# Omawrite
+# OmaZettel
 
-A dead-simple Markdown writing app built with Qt Quick and C++ that automatically follows system dark/light mode.
+A Zettelkasten notes app for Omarchy that works on a folder of plain Markdown
+files. It's built with Qt Quick and C++ and follows your Omarchy theme.
 
-<img width="2948" height="3227" alt="screenshot-2026-06-23_15-24-08" src="https://github.com/user-attachments/assets/4e930c0d-edda-4046-b444-a59eff523329" />
-<img width="2948" height="3227" alt="screenshot-2026-06-23_15-23-23" src="https://github.com/user-attachments/assets/8ced7c26-961b-4ded-b263-84403001a951" />
+OmaZettel is an independent fork of [Omawrite](https://github.com/omacom/omawrite)
+by David Heinemeier Hansson. It is not made or endorsed by Omacom or the
+Omarchy project.
 
+> **Status: early development (0.1.0).** Right now OmaZettel is Omawrite
+> under a new name. The notes features are in progress: a notes folder
+> sidebar, `[[wiki links]]` and backlinks, search across notes, tags and
+> pandoc export.
 
 ## Install
 
-Install via the Omarchy Package Repository via the `omawrite` package. It's installed by default in new installations of Omarchy (from Quattro forward).
+There is no package release yet. Build from source as described in
+[Build and install](#build-and-install).
 
 ## Command line
 
-`omawrite` opens an empty document and `omawrite FILE` opens a Markdown file.
-`omawrite --help` and `omawrite --version` answer in the terminal without opening a window.
+`omazettel` opens an empty document and `omazettel FILE` opens a Markdown file.
+`omazettel --help` and `omazettel --version` answer in the terminal without opening a window.
 
 ## Shortcuts
 
@@ -21,7 +28,7 @@ Install via the Omarchy Package Repository via the `omawrite` package. It's inst
 - `Ctrl+Shift+S` saves as.
 - `Ctrl+O` opens a Markdown file through the portal picker.
 - `Ctrl+P` opens the system print dialog.
-- `Ctrl+N` opens a new Omawrite window.
+- `Ctrl+N` opens a new OmaZettel window.
 - `Ctrl+Z`, `Ctrl+Shift+Z`, and `Ctrl+Y` handle undo and redo.
 - `Super+F` toggles fullscreen. Qt maps this key as `Meta+F`.
 - `Ctrl+F` searches the document. Use `Enter` or `Ctrl+G` for the next match and `Shift+Enter` for the previous match.
@@ -36,18 +43,18 @@ Install via the Omarchy Package Repository via the `omawrite` package. It's inst
 
 Once a document has been saved to a file, edits are auto-saved to that file a
 moment after you stop typing, so `Ctrl+S` is rarely needed. Untitled drafts are
-never auto-saved — they wait for an explicit save so Omawrite never picks a file
-name for you. Unsaved drafts are recovered after an abnormal exit. Omawrite also
+never auto-saved — they wait for an explicit save so OmaZettel never picks a file
+name for you. Unsaved drafts are recovered after an abnormal exit. OmaZettel also
 watches open files and warns before an external change can replace local work;
 auto-save pauses until you reload, keep your version, or save. A recovered draft
 is never auto-saved over its file — save it to keep it.
 
 The font button in the footer picks the writing font from any installed text font,
-and Omawrite remembers the choice. IBM Plex Mono is the default.
+and OmaZettel remembers the choice. IBM Plex Mono is the default.
 
 Text follows the desktop text size — `omarchy display text size`, or GNOME's
 `text-scaling-factor` — and re-flows without a restart. The default of 12px leaves
-Omawrite at the size it is designed around; larger and smaller sizes scale from there.
+OmaZettel at the size it is designed around; larger and smaller sizes scale from there.
 `Ctrl+=`, `Ctrl+-`, and `Ctrl+scroll` set your own size on top of that, from 50% to
 300% in browser-sized steps. It is remembered for the next window you open.
 
@@ -68,14 +75,14 @@ QtTest; both ship in `qt6-base`.
 ```sh
 ./bin/build
 ./bin/test
-./build/omawrite
+./build/omazettel
 ```
 
 `bin/test` runs the Qt test suite with the offscreen platform, so it does not
 require an active graphical session. To open a file with the local build:
 
 ```sh
-./build/omawrite path/to/document.md
+./build/omazettel path/to/document.md
 ```
 
 On Arch Linux or Omarchy, install `base-devel` for the packaging tools, then
@@ -93,3 +100,11 @@ without installing it:
 cd pkgbuild
 makepkg -f
 ```
+
+## License
+
+OmaZettel is licensed under the GNU General Public License, version 3 or later
+(`GPL-3.0-or-later`); see `LICENSE`. It started from Omawrite, which is under the
+MIT license (`LICENSES/MIT-omawrite.txt`). See `THIRD-PARTY-NOTICES.md` for
+all included code and fonts.
+

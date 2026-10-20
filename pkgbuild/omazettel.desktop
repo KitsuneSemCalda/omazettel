@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=OmaZettel
+GenericName=Markdown Notes
+Comment=Zettelkasten notes in plain Markdown files
+Exec=omazettel %f
+Icon=omazettel
+Terminal=false
+Categories=Office;WordProcessor;TextEditor;
+MimeType=text/markdown;text/x-markdown;text/plain;
+Keywords=markdown;zettelkasten;notes;wiki;write;text;editor;
+StartupWMClass=omazettel

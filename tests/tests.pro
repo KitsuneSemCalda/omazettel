@@ -1,11 +1,11 @@
 QT += core gui concurrent quick testlib
 CONFIG += testcase c++17
 TEMPLATE = app
-TARGET = tst_omawrite
+TARGET = tst_omazettel
 
 INCLUDEPATH += ../src
 SOURCES += \
-    tst_omawrite.cpp \
+    tst_omazettel.cpp \
     ../src/backend.cpp \
     ../src/cli.cpp \
     ../src/markdownhighlighter.cpp

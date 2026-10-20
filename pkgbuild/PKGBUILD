@@ -1,13 +1,13 @@
-# Maintainer: David Heinemeier Hansson <david@hey.com>
+# Maintainer: Matthew Smith <mcsmith84@gmail.com>
 
-pkgname=omawrite
-pkgver=0.7.2
+pkgname=omazettel
+pkgver=0.1.0
 pkgrel=1
-pkgdesc='Dead-simple Markdown writing app built with Qt Quick'
+pkgdesc='Zettelkasten notes in plain Markdown files, built with Qt Quick'
 arch=('x86_64' 'aarch64')
-url='https://github.com/omacom/omawrite'
-license=('MIT' 'OFL-1.1')
-install='omawrite.install'
+url='https://github.com/mcsmith3/omazettel'
+license=('GPL-3.0-or-later' 'MIT' 'OFL-1.1')
+install='omazettel.install'
 depends=('qt6-base' 'qt6-declarative' 'xdg-desktop-portal')
 makedepends=('gcc' 'make' 'qt6-base' 'qt6-declarative')
 source=()
@@ -20,9 +20,11 @@ build() {
 
 package() {
   cd "$startdir/.."
-  /usr/bin/install -Dm755 build/omawrite "$pkgdir/usr/bin/omawrite"
+  /usr/bin/install -Dm755 build/omazettel "$pkgdir/usr/bin/omazettel"
   /usr/bin/install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  /usr/bin/install -Dm644 LICENSES/MIT-omawrite.txt "$pkgdir/usr/share/licenses/$pkgname/MIT-omawrite.txt"
+  /usr/bin/install -Dm644 THIRD-PARTY-NOTICES.md "$pkgdir/usr/share/licenses/$pkgname/THIRD-PARTY-NOTICES.md"
   /usr/bin/install -Dm644 fonts/OFL.txt "$pkgdir/usr/share/licenses/$pkgname/OFL.txt"
-  /usr/bin/install -Dm644 "$startdir/omawrite.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/omawrite.svg"
-  /usr/bin/install -Dm644 "$startdir/omawrite.desktop" "$pkgdir/usr/share/applications/omawrite.desktop"
+  /usr/bin/install -Dm644 "$startdir/omazettel.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/omazettel.svg"
+  /usr/bin/install -Dm644 "$startdir/omazettel.desktop" "$pkgdir/usr/share/applications/omazettel.desktop"
 }

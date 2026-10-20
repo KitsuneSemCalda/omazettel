@@ -47,7 +47,7 @@ private:
     QtMessageHandler m_previous = nullptr;
 };
 
-class OmawriteTest : public QObject {
+class OmaZettelTest : public QObject {
     Q_OBJECT
 
 private slots:
@@ -158,13 +158,13 @@ private slots:
 
     void answersHelpBeforeOpeningAWindow() {
         const QString usage = Cli::usage();
-        QVERIFY(usage.contains(QStringLiteral("omawrite [FILE]")));
+        QVERIFY(usage.contains(QStringLiteral("omazettel [FILE]")));
         QVERIFY(usage.contains(QStringLiteral("-h, --help")));
         QVERIFY(usage.contains(QStringLiteral("-v, --version")));
 
         const QString version = QStringLiteral("1.2.3");
         const auto answer = [&](const QStringList &arguments) {
-            return Cli::handleArguments(QStringList{QStringLiteral("omawrite")} + arguments,
+            return Cli::handleArguments(QStringList{QStringLiteral("omazettel")} + arguments,
                                         version);
         };
         QCOMPARE(answer({QStringLiteral("--help")}), std::optional<int>(0));
@@ -2640,7 +2640,7 @@ private slots:
             QVERIFY(versionLabel);
             QVERIFY(versionLabel->property("visible").toBool());
             QCOMPARE(versionLabel->property("text").toString(),
-                     QStringLiteral("Omawrite ") + QCoreApplication::applicationVersion());
+                     QStringLiteral("OmaZettel ") + QCoreApplication::applicationVersion());
             QTest::keyClick(window, Qt::Key_Minus, Qt::ControlModifier);
             QCOMPARE(backend.textScale(), scale);
             QVERIFY(dialog->property("x").toReal() >= 0);
@@ -3166,7 +3166,7 @@ private slots:
         }
         QCOMPARE(readFile(path), QByteArray());
 
-        // The file moves on before Omawrite comes back.
+        // The file moves on before OmaZettel comes back.
         writeFile(path, "newer on disk");
 
         // Earlier tests may have left drafts of their own; claim until ours.
@@ -3462,5 +3462,5 @@ private:
     QTemporaryDir m_settingsDirectory;
 };
 
-QTEST_MAIN(OmawriteTest)
-#include "tst_omawrite.moc"
+QTEST_MAIN(OmaZettelTest)
+#include "tst_omazettel.moc"

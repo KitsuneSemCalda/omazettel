@@ -14,12 +14,12 @@
 #include "cli.h"
 #include "systemtheme.h"
 
-#define OMAWRITE_VERSION "0.7.2"
+#define OMAZETTEL_VERSION "0.1.0"
 
 int main(int argc, char *argv[]) {
     // Answered before the application exists, so they need no display.
     if (const std::optional<int> exitCode =
-            Cli::handleArguments(argc, argv, QStringLiteral(OMAWRITE_VERSION)))
+            Cli::handleArguments(argc, argv, QStringLiteral(OMAZETTEL_VERSION)))
         return *exitCode;
 
     // Omarchy asks Qt for GTK 3 dialogs, which run inside this process, and a
@@ -30,17 +30,16 @@ int main(int argc, char *argv[]) {
         qputenv("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
 
     QApplication app(argc, argv);
-    app.setApplicationName(QStringLiteral("omawrite"));
-    app.setApplicationVersion(QStringLiteral(OMAWRITE_VERSION));
-    app.setDesktopFileName(QStringLiteral("omawrite"));
-    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("omawrite")));
+    app.setApplicationName(QStringLiteral("omazettel"));
+    app.setApplicationVersion(QStringLiteral(OMAZETTEL_VERSION));
+    app.setDesktopFileName(QStringLiteral("omazettel"));
+    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("omazettel")));
 
     QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/IBMPlexMono-Regular.ttf"));
     QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/IBMPlexMono-Italic.ttf"));
     QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/IBMPlexMono-Bold.ttf"));
     QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/IBMPlexMono-BoldItalic.ttf"));
-    app.setOrganizationName(QStringLiteral("Omacom"));
-    app.setOrganizationDomain(QStringLiteral("omacom.io"));
+    app.setOrganizationName(QStringLiteral("omazettel"));
 
     QQuickStyle::setStyle(QStringLiteral("Material"));
 
@@ -83,7 +82,7 @@ int main(int argc, char *argv[]) {
 
     engine.load(QUrl(QStringLiteral("qrc:/Main.qml")));
     if (engine.rootObjects().isEmpty()) {
-        qCritical() << "Could not load the Omawrite interface; resource available:"
+        qCritical() << "Could not load the OmaZettel interface; resource available:"
                     << QFile::exists(QStringLiteral(":/Main.qml"));
         return -1;
     }
