@@ -12,6 +12,7 @@
 #include <QStandardPaths>
 
 #include "backend.h"
+#include "exporter.h"
 #include "noteindex.h"
 #include "notetemplates.h"
 #include "vault.h"
@@ -790,6 +791,185 @@ private slots:
                  QStringLiteral("[[Note]] and [[Kept/Deep/Note]] and [[Kept/Deep/Note]]\n"));
     }
 
+
+    // ── Export ──────────────────────────────────────────────────────────────
+
+    void preparesTextForPandoc() {
+        QCOMPARE(Exporter::prepareText(QStringLiteral(
+                     "<!-- omazettel: name=\"x\" -->\nSee [[Index]], [[Plan#Goals]], [[a/B|the b]].\n```\n[[Code]]\n```\n`[[inline]]`")),
+                 QStringLiteral("See Index, Plan › Goals, the b.\n```\n[[Code]]\n```\n`[[inline]]`"));
+        QCOMPARE(Exporter::formatOf(QStringLiteral("# c\nto: docx\n")), QStringLiteral("docx"));
+        QCOMPARE(Exporter::formatOf(QStringLiteral("writer: \"html5+smart\"\n")), QStringLiteral("html5"));
+        QCOMPARE(Exporter::formatOf(QStringLiteral("# to: pdf\n")), QStringLiteral("html"));
+        QCOMPARE(Exporter::extensionFor(QStringLiteral("latex")), QStringLiteral("tex"));
+        QCOMPARE(Exporter::extensionFor(QStringLiteral("html5")), QStringLiteral("html"));
+        QCOMPARE(Exporter::extensionFor(QStringLiteral("pdf")), QStringLiteral("pdf"));
+        QCOMPARE(Exporter::withTemplate(QStringLiteral("to: pdf\n# template: ${.}/old.tex\n"),
+                                        QStringLiteral("template"), QStringLiteral("${.}/../templates/A.tex")),
+                 QStringLiteral("to: pdf\ntemplate: ${.}/../templates/A.tex\n"));
+        QCOMPARE(Exporter::withTemplate(QStringLiteral("to: docx"), QStringLiteral("reference-doc"), QStringLiteral("r.docx")),
+                 QStringLiteral("to: docx\nreference-doc: r.docx\n"));
+    }
+
+    void writesStarterProfiles() {
+        QTemporaryDir dir;
+        Exporter exporter;
+        exporter.setRoot(dir.path());
+        exporter.ensureDefaults();
+        const QVariantList profiles = exporter.profiles();
+        QStringList names;
+        for (const QVariant &profile : profiles)
+            names << profile.toMap().value(QStringLiteral("name")).toString();
+        QCOMPARE(names, (QStringList{QStringLiteral("HTML"), QStringLiteral("LaTeX source"),
+                                     QStringLiteral("OpenDocument"), QStringLiteral("PDF"), QStringLiteral("Word")}));
+        QCOMPARE(profiles.at(3).toMap().value(QStringLiteral("extension")).toString(), QStringLiteral("pdf"));
+        QVERIFY(QFileInfo(exporter.templatesFolder()).isDir());
+        // Only once: a removed profile stays removed.
+        QFile::remove(profiles.at(0).toMap().value(QStringLiteral("path")).toString());
+        exporter.ensureDefaults();
+        QCOMPARE(exporter.profiles().size(), 4);
+        QCOMPARE(exporter.defaultOutputPath(dir.filePath(QStringLiteral("Sub/My note.md")),
+                                            profiles.at(4).toMap().value(QStringLiteral("path")).toString()),
+                 dir.filePath(QStringLiteral("Sub/My note.docx")));
+
+        const QString none = Exporter::starterProfiles(QString()).first().second;
+        QVERIFY(none.contains(QStringLiteral("texlive-xetex")));
+        QVERIFY(Exporter::starterProfiles(QStringLiteral("pdflatex")).first().second.contains(QStringLiteral("pdf-engine: pdflatex")));
+    }
+
+    void makesTemplatesAndProfiles() {
+        QTemporaryDir dir;
+        Exporter exporter;
+        if (!exporter.pandocAvailable())
+            QSKIP("pandoc is not installed.");
+        exporter.setRoot(dir.path());
+        exporter.ensureDefaults();
+
+        const QString tex = exporter.newTemplate(QStringLiteral("latex"), QStringLiteral("Letter"));
+        QCOMPARE(QFileInfo(tex).fileName(), QStringLiteral("Letter.tex"));
+        QVERIFY(readFile(tex).contains(QStringLiteral("$body$")));
+        const QString docx = exporter.newTemplate(QStringLiteral("docx"), QString());
+        QCOMPARE(QFileInfo(docx).fileName(), QStringLiteral("Reference.docx"));
+        QVERIFY(QFileInfo(docx).size() > 1000);
+        QCOMPARE(exporter.newTemplate(QStringLiteral("nope"), QStringLiteral("x")), QString());
+        QVERIFY(!exporter.error().isEmpty());
+
+        const QVariantList templates = exporter.templates();
+        QCOMPARE(templates.size(), 2);
+        QCOMPARE(templates.at(0).toMap().value(QStringLiteral("kind")).toString(), QStringLiteral("template"));
+        QVERIFY(templates.at(0).toMap().value(QStringLiteral("text")).toBool());
+        QCOMPARE(templates.at(1).toMap().value(QStringLiteral("kind")).toString(), QStringLiteral("reference"));
+
+        const QString pdfProfile = exporter.profilesFolder() + QStringLiteral("/PDF.yaml");
+        const QString letter = exporter.newProfile(QStringLiteral("Letter"), pdfProfile, tex);
+        QVERIFY(readFile(letter).contains(QStringLiteral("\ntemplate: ${.}/../templates/Letter.tex\n")));
+        // A reference document switches the profile to its own format.
+        const QString word = exporter.newProfile(QStringLiteral("Styled Word"), pdfProfile, docx);
+        QCOMPARE(Exporter::formatOf(readFile(word)), QStringLiteral("docx"));
+        QVERIFY(readFile(word).contains(QStringLiteral("reference-doc: ${.}/../templates/Reference.docx")));
+    }
+
+    void exportsNotes() {
+        QTemporaryDir dir;
+        Exporter exporter;
+        if (!exporter.pandocAvailable())
+            QSKIP("pandoc is not installed.");
+        exporter.setRoot(dir.path());
+        exporter.ensureDefaults();
+        const QString note = dir.filePath(QStringLiteral("Notes/Plan.md"));
+        writeFile(note, "---\ntitle: \"The \\\"Q4\\\" plan\"\nauthor: \"Matt\"\n---\n\nSee [[Index|the index]] and #tag.\n");
+        const QString html = dir.filePath(QStringLiteral("out/Plan.html"));
+
+        QSignalSpy finished(&exporter, &Exporter::finished);
+        QVERIFY(exporter.exportNote(note, exporter.profilesFolder() + QStringLiteral("/HTML.yaml"), html));
+        QVERIFY(exporter.busy());
+        QVERIFY(finished.wait(30000));
+        QVERIFY2(finished.first().at(0).toBool(), qPrintable(finished.first().at(2).toString()));
+        const QString page = readFile(html);
+        QVERIFY(page.contains(QStringLiteral("The “Q4” plan")) || page.contains(QStringLiteral("The &quot;Q4&quot; plan")));
+        QVERIFY(page.contains(QStringLiteral("See the index and #tag.")));
+        QVERIFY(!page.contains(QStringLiteral("[[")));
+
+        // The editor's text (unsaved changes) can be exported instead.
+        finished.clear();
+        QVERIFY(exporter.exportText(note, exporter.profilesFolder() + QStringLiteral("/HTML.yaml"), html,
+                                    QStringLiteral("# Unsaved\n\nFresh text.\n")));
+        QVERIFY(finished.wait(30000));
+        QVERIFY(readFile(html).contains(QStringLiteral("Fresh text.")));
+
+        finished.clear();
+        const QString docx = dir.filePath(QStringLiteral("Plan.docx"));
+        QVERIFY(exporter.exportNote(note, exporter.profilesFolder() + QStringLiteral("/Word.yaml"), docx));
+        QVERIFY(finished.wait(30000));
+        QVERIFY(finished.first().at(0).toBool());
+        QVERIFY(QFileInfo(docx).size() > 1000);
+
+        // A broken profile reports pandoc's error.
+        finished.clear();
+        writeFile(exporter.profilesFolder() + QStringLiteral("/Broken.yaml"), "to: nosuchformat\n");
+        QVERIFY(exporter.exportNote(note, exporter.profilesFolder() + QStringLiteral("/Broken.yaml"),
+                                    dir.filePath(QStringLiteral("x.out"))));
+        QVERIFY(finished.wait(30000));
+        QVERIFY(!finished.first().at(0).toBool());
+        QVERIFY(!finished.first().at(2).toString().isEmpty());
+    }
+
+    void exportsPdfWhenAnEngineWorks() {
+        const QString engine = Exporter::detectPdfEngine();
+        if (engine.isEmpty())
+            QSKIP("No PDF engine is installed.");
+        QTemporaryDir dir;
+        Exporter exporter;
+        exporter.setRoot(dir.path());
+        exporter.ensureDefaults();
+        const QString note = dir.filePath(QStringLiteral("Report.md"));
+        writeFile(note, "---\ntitle: \"Report\"\nauthor: \"Matt\"\ndate: \"2026-10-20\"\n---\n\n# Intro\n\nText and [[Link]].\n");
+        const QString pdf = dir.filePath(QStringLiteral("Report.pdf"));
+        QSignalSpy finished(&exporter, &Exporter::finished);
+        QVERIFY(exporter.exportNote(note, exporter.profilesFolder() + QStringLiteral("/PDF.yaml"), pdf));
+        QVERIFY(finished.wait(120000));
+        QVERIFY2(finished.first().at(0).toBool(), qPrintable(finished.first().at(2).toString()));
+        QFile file(pdf);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QVERIFY(file.read(5) == "%PDF-");
+    }
+
+    void exportDialogExportsTheOpenNote() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("Open.md")), "# Saved\n");
+        Backend backend;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+        if (!m_windowExporter->pandocAvailable())
+            QSKIP("pandoc is not installed.");
+        QMetaObject::invokeMethod(window.get(), "openNote",
+                                  Q_ARG(QVariant, QUrl::fromLocalFile(dir.filePath(QStringLiteral("Open.md")))));
+        auto *editor = window->findChild<QObject *>(QStringLiteral("sourceEditor"));
+        editor->setProperty("text", QStringLiteral("# Not saved yet\n"));
+
+        QMetaObject::invokeMethod(window.get(), "exportNote", Q_ARG(QVariant, dir.filePath(QStringLiteral("Open.md"))));
+        auto *dialog = window->findChild<QObject *>(QStringLiteral("exportDialog"));
+        QVERIFY(dialog);
+        QVERIFY(dialog->property("profileList").toList().size() >= 5);
+        // Pick the HTML profile.
+        const QVariantList profiles = dialog->property("profileList").toList();
+        for (int i = 0; i < profiles.size(); ++i) {
+            if (profiles.at(i).toMap().value(QStringLiteral("name")) == QStringLiteral("HTML")) {
+                dialog->setProperty("profileIndex", i);
+                QMetaObject::invokeMethod(dialog, "updateOutput");
+            }
+        }
+        QCOMPARE(dialog->property("outputPath").toString(), dir.filePath(QStringLiteral("Open.html")));
+        QSignalSpy finished(m_windowExporter.get(), &Exporter::finished);
+        QMetaObject::invokeMethod(dialog, "runExport");
+        QVERIFY(finished.wait(30000));
+        QCOMPARE(dialog->property("resultState").toString(), QStringLiteral("ok"));
+        QVERIFY(readFile(dir.filePath(QStringLiteral("Open.html"))).contains(QStringLiteral("Not saved yet")));
+        QCOMPARE(m_windowExporter->lastProfile(), profiles.at(0).toMap().value(QStringLiteral("path")).toString());
+    }
+
     // ── The window ──────────────────────────────────────────────────────────
 
     void sidebarOpensNotesInPlace() {
@@ -984,6 +1164,9 @@ private:
         m_windowTemplates = std::make_unique<NoteTemplates>();
         m_windowTemplates->setRoot(vault.rootPath());
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_windowTemplates.get());
+        m_windowExporter = std::make_unique<Exporter>();
+        m_windowExporter->setRoot(vault.rootPath());
+        engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_windowExporter.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         if (!component.isReady()) {
             qWarning() << component.errorString();
@@ -999,6 +1182,7 @@ private:
     QQmlEngine m_engine;
     std::unique_ptr<NoteIndex> m_windowIndex;
     std::unique_ptr<NoteTemplates> m_windowTemplates;
+    std::unique_ptr<Exporter> m_windowExporter;
 };
 
 QTEST_MAIN(NotesTest)

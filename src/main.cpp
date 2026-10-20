@@ -13,6 +13,7 @@
 #include "backend.h"
 #include "cli.h"
 #include "systemtheme.h"
+#include "exporter.h"
 #include "noteindex.h"
 #include "notetemplates.h"
 #include "vault.h"
@@ -92,6 +93,11 @@ int main(int argc, char *argv[]) {
     noteTemplates.setRoot(vault.rootPath());
     QObject::connect(&vault, &Vault::rootPathChanged, &noteTemplates,
                      [&vault, &noteTemplates]() { noteTemplates.setRoot(vault.rootPath()); });
+    // Export profiles and templates live in .omazettel/export and /templates.
+    Exporter exporter(&app);
+    exporter.setRoot(vault.rootPath());
+    QObject::connect(&vault, &Vault::rootPathChanged, &exporter,
+                     [&vault, &exporter]() { exporter.setRoot(vault.rootPath()); });
     QObject::connect(&app, &QGuiApplication::applicationStateChanged, &noteIndex,
                      [&noteIndex](Qt::ApplicationState state) {
                          if (state == Qt::ApplicationActive)
@@ -108,6 +114,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("vault"), &vault);
     engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), &noteIndex);
     engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), &noteTemplates);
+    engine.rootContext()->setContextProperty(QStringLiteral("exporter"), &exporter);
 
     engine.load(QUrl(QStringLiteral("qrc:/Main.qml")));
     if (engine.rootObjects().isEmpty()) {

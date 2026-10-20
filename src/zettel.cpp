@@ -229,4 +229,37 @@ ParsedNote parse(const QString &text) {
     return note;
 }
 
+QString plainWikiLinks(const QString &text) {
+    if (!text.contains(QLatin1String("[[")))
+        return text;
+    QStringList lines = text.split(QLatin1Char('\n'));
+    QChar fenceMarker;
+    int fence = 0;
+    for (QString &line : lines) {
+        QChar marker;
+        const int length = fenceLength(line, &marker);
+        if (fence > 0) {
+            if (length >= fence && marker == fenceMarker && line.trimmed().size() == length)
+                fence = 0;
+            continue;
+        }
+        if (length > 0) {
+            fence = length;
+            fenceMarker = marker;
+            continue;
+        }
+        const QList<WikiLink> links = wikiLinks(line);
+        for (auto link = links.crbegin(); link != links.crend(); ++link) {
+            QString shown = link->label;
+            if (shown.isEmpty()) {
+                shown = link->target.section(QLatin1Char('/'), -1);
+                if (!link->heading.isEmpty())
+                    shown += QStringLiteral(" › ") + link->heading;
+            }
+            line.replace(link->start, link->length, shown);
+        }
+    }
+    return lines.join(QLatin1Char('\n'));
+}
+
 }

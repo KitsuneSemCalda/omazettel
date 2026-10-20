@@ -40,6 +40,7 @@ Rectangle {
     signal chooseFolderRequested()
     signal moveRequested(string path, string folder)
     signal dailyNoteRequested()
+    signal exportRequested(string path)
     signal editTemplateRequested(string path)
     signal authorRequested()
 
@@ -644,6 +645,12 @@ Rectangle {
         MenuItem {
             text: "New folder here"
             onTriggered: root.newFolderRequested(vault.folderFor(itemMenu.path))
+        }
+        MenuItem {
+            text: "Export…"
+            visible: !itemMenu.isFolder
+            height: visible ? implicitHeight : 0
+            onTriggered: root.exportRequested(itemMenu.path)
         }
         MenuSeparator {}
         MenuItem {

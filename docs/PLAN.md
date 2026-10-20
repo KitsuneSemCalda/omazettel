@@ -71,7 +71,7 @@ Estimates assume one person working with AI help.
 | 0 ✅ | Fork and rebrand | New name, binary, app ID, desktop file, icon, version. Upstream remote kept. Build and tests pass. | 1–2 days |
 | 1 ✅ | Notes folder and sidebar | `Vault`, `WelcomeView`, `Sidebar`; clicking a note opens it in place (autosave keeps this safe); create, rename, delete notes | ~1 week |
 | 2 ✅ | Links and tags | `NoteIndex`, wiki link highlighting, Ctrl+click to follow (creating missing notes), back/forward history, `[[` completion, backlinks panel, quick switcher | 1–1.5 weeks |
-| 3 | Export and templates | Pandoc export profiles, custom templates and reference documents (see below) | 1–1.5 weeks |
+| 3 ✅ | Export and templates | Pandoc export profiles, custom templates and reference documents (see below) | 1–1.5 weeks |
 | 4 | Search and outline | Search across notes, outline panel (tags moved into Phase 2) | 3–5 days |
 | 5 | Polish and packaging | Command palette, settings, PKGBUILD, README, screenshots, tests for each new class | ~1 week |
 | | **Version 1 total** | | **~4–6 weeks** |
@@ -124,7 +124,16 @@ After version 1, in rough order of value:
   links (`NoteIndex::rewriteText/rewriteLinks/movesForFolder`), the open note
   in the editor and the rest on disk.
 
-## Export templates (requested 2026-10-20, next phase)
+- **Phase 3 export (done, 2026-10-20):** `src/exporter.*` (profiles as pandoc
+  defaults files, starter profiles with PDF engine detection, templates and
+  reference documents from pandoc's defaults, new profiles using them,
+  background export with pandoc's messages), `ExportDialog.qml`
+  (Ctrl+Shift+E, sidebar Export…), `Zettel::plainWikiLinks`. Tested end to end
+  with HTML, Word and PDF (pdflatex here; xelatex needs texlive-xetex).
+  Later: export a whole folder or a set of notes as one document (Zettlr's
+  projects); citations with a bibliography and CSL style.
+
+## Export templates (designed 2026-10-20, built in Phase 3)
 
 Modelled on Zettlr's custom templates and reference documents
 (docs.zettlr.com/en/export/custom-templates.html), which map directly onto

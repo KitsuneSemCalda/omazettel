@@ -8,8 +8,8 @@ by David Heinemeier Hansson. It is not made or endorsed by Omacom or the
 Omarchy project.
 
 > **Status: early development (0.1.0).** Working: the notes folder sidebar,
-> `[[wiki links]]`, backlinks, tags and note templates. Still to come: pandoc export with
-> custom templates, and search across notes. See `docs/PLAN.md`.
+> `[[wiki links]]`, backlinks, tags, note templates and pandoc export with
+> custom templates. Still to come: search across notes. See `docs/PLAN.md`.
 
 ## Notes folder
 
@@ -58,6 +58,37 @@ inside the notes folder (default: the selected folder) and `existing="open"`
 opens a note of that name instead of making a second one (the Daily template
 uses it). A template that doesn't use `{{title}}` doesn't ask for one.
 
+## Export
+
+Ctrl+Shift+E (or right-click a note → Export…) exports the note with
+[pandoc](https://pandoc.org). Pick a profile and where to save, then Export.
+The open note exports what is in the editor, unsaved changes included.
+`[[links]]` become their text, since links between notes mean nothing in a
+PDF; the note's YAML header (title, author, date, …) fills the document.
+
+How it is set up, after Zettlr's custom templates and reference documents,
+but as pandoc's own files so the same export also works from a terminal:
+
+- **Profiles** are pandoc [defaults files](https://pandoc.org/MANUAL.html#defaults-files)
+  in `<notes folder>/.omazettel/export/`. OmaZettel adds PDF, Word,
+  OpenDocument, HTML and LaTeX source the first time you export. Any pandoc
+  option works in them (`toc: true`, `number-sections: true`, `variables:`,
+  `citeproc: true`, …). Click Edit in the export dialog to change one, or New
+  to copy it.
+- **Templates** (`.tex`, `.html`) lay out PDF and HTML exports, and
+  **reference documents** (`.docx`, `.odt`, `.pptx`) give Word, LibreOffice
+  and PowerPoint exports their styles. They live in `.omazettel/templates/`.
+  New ▾ in the export dialog makes one from pandoc's default; edit a template
+  in OmaZettel, or open a reference document in LibreOffice or Word and change
+  its styles. **New profile with this** makes a profile that uses it.
+- Profiles point to templates with `${.}/../templates/<file>` (`${.}` is the
+  profile's folder), so from a terminal:
+  `pandoc -d .omazettel/export/PDF.yaml note.md -o note.pdf`.
+
+PDF export needs a LaTeX engine. The PDF profile uses XeLaTeX when it's
+installed (`sudo pacman -S texlive-xetex`, which handles any Unicode text and
+system fonts) and pdflatex otherwise.
+
 ## Links and tags
 
 - Link notes with `[[Note name]]`. `[[folder/Note]]`, `[[Note#Heading]]` and
@@ -102,6 +133,7 @@ There is no package release yet. Build from source as described in
 - `Ctrl+N` makes a new note in the notes folder.
 - `Ctrl+Shift+N` opens a new OmaZettel window.
 - `Ctrl+Shift+D` opens today's daily note.
+- `Ctrl+Shift+E` exports the note with pandoc.
 - `Ctrl+\` shows or hides the notes sidebar.
 - `Ctrl+Z`, `Ctrl+Shift+Z`, and `Ctrl+Y` handle undo and redo.
 - `Super+F` toggles fullscreen. Qt maps this key as `Meta+F`.

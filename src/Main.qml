@@ -392,6 +392,16 @@ ApplicationWindow {
         });
     }
 
+    // Export a note with pandoc. The open note exports what is in the editor.
+    function exportNote(path) {
+        if (path.length === 0) {
+            backend.showStatus("Save the note before exporting it.");
+            return;
+        }
+        var isOpen = path === currentPath();
+        exportDialog.openFor(path, isOpen ? editor.text : "", isOpen);
+    }
+
     function chooseFolder() {
         if (vault.isOpen)
             folderDialog.currentFolder = vault.urlForPath(vault.rootPath);
@@ -597,6 +607,11 @@ ApplicationWindow {
     Shortcut {
         sequence: "Ctrl+\\"
         onActivated: vault.sidebarVisible = !vault.sidebarVisible
+    }
+
+    Shortcut {
+        sequence: "Ctrl+Shift+E"
+        onActivated: win.exportNote(win.currentPath())
     }
 
     Shortcut {
@@ -810,6 +825,7 @@ ApplicationWindow {
         onTrashRequested: function(path) { win.trashItem(path); }
         onMoveRequested: function(path, folder) { win.moveItem(path, folder); }
         onDailyNoteRequested: win.openDailyNote()
+        onExportRequested: function(path) { win.exportNote(path); }
         onEditTemplateRequested: function(path) { win.openNote(vault.urlForPath(path)); }
         onAuthorRequested: nameDialog.askForName("Author name", noteTemplates.author, "Save",
                                                  function(name) { noteTemplates.author = name; })
@@ -835,6 +851,27 @@ ApplicationWindow {
             vault.sidebarVisible = true;
             sidebar.showTag(tag);
         }
+    }
+
+    ExportDialog {
+        id: exportDialog
+        darkMode: win.darkMode
+        textScale: win.textScale
+        textColor: win.textColor
+        mutedColor: win.mutedColor
+        accentColor: backend.themeAccent
+        selectionFill: win.selectionFill
+        selectionTextColor: win.selectionTextColor
+        containerWidth: win.width
+        containerHeight: win.height
+        askName: function(heading, initial, callback) {
+            nameDialog.askForName(heading, initial, "Create", callback);
+        }
+        onEditRequested: function(path) {
+            close();
+            win.openNote(vault.urlForPath(path));
+        }
+        onClosed: editor.forceActiveFocus()
     }
 
     NotePicker {

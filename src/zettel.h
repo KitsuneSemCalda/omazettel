@@ -45,6 +45,10 @@ ParsedNote parse(const QString &text);
 // Front matter tags or keywords: "tags: [a, b]", "tags: a, b" or a list.
 QStringList frontMatterTags(const QString &frontMatter);
 
+// The text with every [[link]] (outside code) replaced by its label, or its
+// target (and heading), for export, where links between notes mean nothing.
+QString plainWikiLinks(const QString &text);
+
 // The inline code spans of a line, as [start, end) pairs.
 QList<QPair<int, int>> codeRanges(const QString &line);
 

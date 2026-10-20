@@ -88,6 +88,8 @@ Dialog {
 
     modal: true
     focus: true
+    // Above other dialogs (export) that ask for a name.
+    z: 100
     closePolicy: Popup.CloseOnEscape
     width: Math.min(Math.round(420 * textScale), containerWidth - 48)
     x: Math.round((containerWidth - width) / 2)

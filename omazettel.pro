@@ -8,6 +8,7 @@ HEADERS += \
     src/backend.h \
     src/cli.h \
     src/markdownhighlighter.h \
+    src/exporter.h \
     src/noteindex.h \
     src/notetemplates.h \
     src/systemtheme.h \
@@ -21,6 +22,7 @@ SOURCES += \
     src/cli.cpp \
     src/markdownhighlighter.cpp \
     src/markdownhighlighter_notes.cpp \
+    src/exporter.cpp \
     src/noteindex.cpp \
     src/notetemplates.cpp \
     src/systemtheme.cpp \
