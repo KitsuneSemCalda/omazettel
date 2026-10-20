@@ -124,19 +124,136 @@ ApplicationWindow {
         navigatingHistory = false;
     }
 
-    // Opens the note a [[link]] names, making it (next to the current note)
-    // when there is none yet.
+    // ── Making notes ────────────────────────────────────────────────────────
+
+    // Notes made from links and the quick switcher use this template when
+    // it exists (it carries the pandoc header), else a plain heading.
+    readonly property string linkTemplate: "Note"
+
+    // Makes a note from a template, or a blank one when templateName is ""
+    // or missing. Returns {path, cursor, existed} or null.
+    function createNoteFile(templateName, title, folder, exactName) {
+        noteTemplates.ensureDefaults();
+        if (templateName.length > 0 && noteTemplates.pathOf(templateName).length > 0) {
+            var result = noteTemplates.create(templateName, title, folder, exactName || "");
+            if (result.path === undefined) {
+                vault.showError(noteTemplates.lastError());
+                return null;
+            }
+            return result;
+        }
+        var path = vault.createNote(folder, exactName || title);
+        return path.length > 0 ? { path: path, cursor: -1, existed: false } : null;
+    }
+
+    function openCreated(result) {
+        if (!result)
+            return;
+        noteIndex.updateFile(result.path);
+        openNote(vault.urlForPath(result.path));
+        if (result.cursor >= 0 && currentPath() === result.path)
+            editor.cursorPosition = Math.min(result.cursor, editor.length);
+        editor.forceActiveFocus();
+    }
+
+    function openDailyNote() {
+        if (!vault.isOpen)
+            return;
+        noteTemplates.ensureDefaults();
+        if (noteTemplates.pathOf("Daily").length === 0) {
+            vault.showError("There is no Daily template in .omazettel/note-templates.");
+            return;
+        }
+        openCreated(createNoteFile("Daily", "", vault.rootPath, ""));
+    }
+
+    // A [[link]] target as a folder and a note name: "Projects/Plan" goes in
+    // Projects, "Plan" next to the linking note. Null for targets that would
+    // leave the notes folder.
+    function linkTargetPlace(target, fromPath) {
+        if (target.indexOf("..") >= 0)
+            return null;
+        var slash = target.lastIndexOf("/");
+        if (slash < 0)
+            return { folder: vault.folderFor(fromPath), name: target };
+        return { folder: vault.rootPath + "/" + target.substring(0, slash).replace(/^\/+/, ""),
+                 name: target.substring(slash + 1) };
+    }
+
+    // Opens the note a [[link]] names, making it when there is none yet.
     function followWikiLink(target) {
         if (!vault.isOpen)
             return;
         var path = noteIndex.resolve(target, currentPath());
         if (path.length === 0) {
-            path = vault.createNote(vault.folderFor(currentPath()), target);
-            if (path.length === 0)
+            var place = linkTargetPlace(target, currentPath());
+            var result = place ? createNoteFile(linkTemplate, place.name, place.folder, place.name) : null;
+            if (!result)
                 return;
-            noteIndex.updateFile(path);
+            noteIndex.updateFile(result.path);
+            path = result.path;
         }
         openNote(vault.urlForPath(path));
+    }
+
+    // After a save: every [[link]] in the note that points nowhere gets its
+    // note made, except the one the caret is in (it may be half typed).
+    function createMissingLinkedNotes() {
+        var path = currentPath();
+        if (!noteIndex.covers(path))
+            return;
+        var missing = noteIndex.missingTargets(path);
+        if (missing.length === 0)
+            return;
+        var typing = backend.wikiLinkAt(editor.cursorPosition);
+        var made = [];
+        for (var i = 0; i < missing.length; ++i) {
+            if (missing[i] === typing)
+                continue;
+            var place = linkTargetPlace(missing[i], path);
+            var result = place ? createNoteFile(linkTemplate, place.name, place.folder, place.name) : null;
+            if (result) {
+                noteIndex.updateFile(result.path);
+                made.push(place.name);
+            }
+        }
+        if (made.length === 1)
+            backend.showStatus("Created linked note " + made[0]);
+        else if (made.length > 1)
+            backend.showStatus("Created " + made.length + " linked notes");
+    }
+
+    // Before notes move: rewrites [[links]] to them everywhere, the open note
+    // in the editor (so it is not changed under it on disk) and the rest on
+    // disk. moves maps old paths to new ones.
+    function updateLinksFor(moves) {
+        var links = 0;
+        var notes = 0;
+        var open = currentPath();
+        if (open.length > 0 && noteIndex.covers(open)) {
+            var text = editor.text;
+            var rewritten = noteIndex.rewriteText(text, open, moves);
+            if (rewritten !== text) {
+                var caret = editor.cursorPosition;
+                links += noteIndex.lastRewriteCount();
+                notes += 1;
+                EditorMutations.replaceRange(editor, 0, text.length, rewritten);
+                editor.cursorPosition = Math.min(caret, editor.length);
+            }
+        }
+        links += noteIndex.rewriteLinks(moves, open);
+        notes += noteIndex.lastRewriteFiles();
+        if (links > 0)
+            backend.showStatus("Updated " + links + (links === 1 ? " link" : " links")
+                               + " in " + notes + (notes === 1 ? " note" : " notes"));
+    }
+
+    function movesFor(path, target) {
+        if (vault.isFolderPath(path))
+            return noteIndex.movesForFolder(path, target);
+        var moves = {};
+        moves[path] = target;
+        return moves;
     }
 
     // Ctrl+click or Ctrl+Enter: a [[wiki link]] opens its note, a web link
@@ -187,10 +304,11 @@ ApplicationWindow {
             backend.newWindow();
             return;
         }
-        nameDialog.askForName("New note", "", "Create", function(name) {
-            var path = vault.createNote(folder, name);
-            if (path.length > 0)
-                openNote(vault.urlForPath(path));
+        noteTemplates.ensureDefaults();
+        nameDialog.askForNote(noteTemplates.list(), noteTemplates.defaultTemplate, function(title, templateName) {
+            if (templateName.length > 0)
+                noteTemplates.defaultTemplate = templateName;
+            openCreated(createNoteFile(templateName, title, folder, ""));
         });
     }
 
@@ -205,46 +323,51 @@ ApplicationWindow {
     }
 
     // Renaming the open note, or a folder holding it, keeps it open at its
-    // new path.
+    // new path, and links to the renamed notes follow them.
     function renameItem(path) {
         var name = path.substring(path.lastIndexOf("/") + 1);
         nameDialog.askForName("Rename", name, "Rename", function(newName) {
-            var open = currentPath();
-            if (path === open) {
-                var target = vault.renameTarget(path, newName);
-                if (target.length > 0 && backend.moveCurrentFile(vault.urlForPath(target)))
-                    sidebar.reveal(target);
+            var target = vault.renameTarget(path, newName);
+            if (target.length === 0 || target === path)
                 return;
-            }
-            var holdsOpenNote = open.length > 0 && open.indexOf(path + "/") === 0;
-            if (holdsOpenNote && !backend.flushAutoSave()) {
-                vault.clearError();
-                backend.save();
-                return;
-            }
-            var renamed = vault.renamePath(path, newName);
-            if (renamed.length > 0 && holdsOpenNote)
-                backend.followMovedFile(vault.urlForPath(renamed + open.substring(path.length)));
+            relocate(path, target, function() { return vault.renamePath(path, newName); });
         });
     }
 
     // Moving the open note, or a folder holding it, keeps it open at its new
-    // path.
+    // path, and links that name a path follow it.
     function moveItem(path, folder) {
-        var open = currentPath();
-        if (path === open) {
-            var target = vault.moveTarget(path, folder);
-            if (target.length > 0 && target !== path && backend.moveCurrentFile(vault.urlForPath(target)))
-                sidebar.reveal(target);
+        var target = vault.moveTarget(path, folder);
+        if (target.length === 0 || target === path)
             return;
-        }
+        relocate(path, target, function() { return vault.movePath(path, folder); });
+    }
+
+    // Shared by rename and move: update links, then move the files, keeping
+    // the open note open.
+    function relocate(path, target, move) {
+        var open = currentPath();
+        var isOpenNote = path === open;
         var holdsOpenNote = open.length > 0 && open.indexOf(path + "/") === 0;
-        if (holdsOpenNote && !backend.flushAutoSave()) {
+        // The open note has to be saved first; if auto-save cannot do it,
+        // ask for a save and leave everything where it is.
+        if ((isOpenNote || holdsOpenNote) && !backend.flushAutoSave()) {
             backend.save();
             return;
         }
-        var moved = vault.movePath(path, folder);
-        if (moved.length === 0 || moved === path)
+        // Links are rewritten before anything moves, while the index still
+        // knows the old paths.
+        updateLinksFor(movesFor(path, target));
+        if (isOpenNote) {
+            if (backend.moveCurrentFile(vault.urlForPath(target)))
+                sidebar.reveal(target);
+            noteIndex.scheduleRescan();
+            return;
+        }
+        if (holdsOpenNote)
+            backend.flushAutoSave();
+        var moved = move();
+        if (moved.length === 0)
             return;
         if (holdsOpenNote)
             backend.followMovedFile(vault.urlForPath(moved + open.substring(path.length)));
@@ -477,6 +600,11 @@ ApplicationWindow {
     }
 
     Shortcut {
+        sequence: "Ctrl+Shift+D"
+        onActivated: win.openDailyNote()
+    }
+
+    Shortcut {
         sequence: "Ctrl+Shift+B"
         onActivated: vault.panelVisible = !vault.panelVisible
     }
@@ -681,6 +809,10 @@ ApplicationWindow {
         onRenameRequested: function(path) { win.renameItem(path); }
         onTrashRequested: function(path) { win.trashItem(path); }
         onMoveRequested: function(path, folder) { win.moveItem(path, folder); }
+        onDailyNoteRequested: win.openDailyNote()
+        onEditTemplateRequested: function(path) { win.openNote(vault.urlForPath(path)); }
+        onAuthorRequested: nameDialog.askForName("Author name", noteTemplates.author, "Save",
+                                                 function(name) { noteTemplates.author = name; })
         onChooseFolderRequested: win.chooseFolder()
     }
 
@@ -722,11 +854,7 @@ ApplicationWindow {
             if (note) {
                 win.openNote(vault.urlForPath(note.path));
             } else if (typed.length > 0) {
-                var path = vault.createNote(sidebar.targetFolder, typed);
-                if (path.length > 0) {
-                    noteIndex.updateFile(path);
-                    win.openNote(vault.urlForPath(path));
-                }
+                win.openCreated(win.createNoteFile(win.linkTemplate, typed, sidebar.targetFolder, typed));
             }
         }
         onClosed: editor.forceActiveFocus()
@@ -736,6 +864,7 @@ ApplicationWindow {
         target: backend
         function onSaveSucceeded() {
             noteIndex.updateFile(win.currentPath());
+            win.createMissingLinkedNotes();
         }
     }
 
@@ -1484,7 +1613,7 @@ ApplicationWindow {
                 font.pixelSize: win.scaledSize(11)
                 visible: text !== ""
                 elide: Text.ElideRight
-                width: Math.min(360, win.width / 3)
+                width: Math.min(360, win.contentWidth / 3)
                 height: win.scaledSize(16)
                 verticalAlignment: Text.AlignVCenter
             }

@@ -47,6 +47,7 @@ public:
     Q_INVOKABLE void closeFolder();
     Q_INVOKABLE void forgetRecent(const QString &path);
     Q_INVOKABLE void clearError() { setError(QString()); }
+    Q_INVOKABLE void showError(const QString &error) { setError(error); }
 
     // Reading the tree.
     Q_INVOKABLE QString filePath(const QModelIndex &index) const;

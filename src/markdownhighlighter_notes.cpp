@@ -5,10 +5,45 @@
 #include "zettel.h"
 
 #include <QTextBlock>
+#include <QTextDocument>
 
 // [[wiki links]] read as links without an underline, their brackets hidden
 // unless the caret is in the link, like other markup. #tags take the accent.
+namespace {
+// The block number of the line closing a YAML front matter block at the top
+// of the document, or -1 when there is none.
+int frontMatterEnd(const QTextDocument *document) {
+    QTextBlock block = document ? document->firstBlock() : QTextBlock();
+    if (!block.isValid() || block.text().trimmed() != QLatin1String("---"))
+        return -1;
+    block = block.next();
+    for (int n = 0; block.isValid() && n < 300; ++n, block = block.next()) {
+        const QString trimmed = block.text().trimmed();
+        if (trimmed == QLatin1String("---") || trimmed == QLatin1String("..."))
+            return block.blockNumber();
+    }
+    return -1;
+}
+}
+
 void MarkdownHighlighter::highlightZettel(const QString &text) {
+    // The YAML header pandoc reads (title, author, tags, ...) recedes, keys
+    // muted, so the note's own text stands out.
+    if (currentBlock().blockNumber() < 300) {
+        const int end = frontMatterEnd(document());
+        if (end >= 0 && currentBlock().blockNumber() <= end) {
+            QTextCharFormat value;
+            value.setForeground(m_quoteFormat.foreground());
+            setFormat(0, text.length(), value);
+            const int colon = text.indexOf(QLatin1Char(':'));
+            if (text.trimmed() == QLatin1String("---") || text.trimmed() == QLatin1String("..."))
+                setFormat(0, text.length(), m_markerFormat);
+            else if (colon > 0 && !text.at(0).isSpace())
+                setFormat(0, colon + 1, m_markerFormat);
+            return;
+        }
+    }
+
     const QList<Zettel::WikiLink> links = Zettel::wikiLinks(text);
     const QList<Zettel::TagSpan> tagSpans = Zettel::tags(text);
     if (links.isEmpty() && tagSpans.isEmpty())

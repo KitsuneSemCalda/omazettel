@@ -21,6 +21,7 @@ Dialog {
         { key: "Ctrl+Shift+O", desc: "Open File" },
         { key: "Ctrl+N", desc: "New Note" },
         { key: "Ctrl+Shift+N", desc: "New Window" },
+        { key: "Ctrl+Shift+D", desc: "Today's Daily Note" },
         { key: "Ctrl+\\", desc: "Show or Hide Sidebar" },
         { key: "Ctrl+Shift+B", desc: "Show or Hide Backlinks & Tags" },
         { key: "Ctrl+Click / Ctrl+Enter", desc: "Follow Link" },

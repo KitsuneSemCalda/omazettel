@@ -14,6 +14,7 @@
 #include "cli.h"
 #include "systemtheme.h"
 #include "noteindex.h"
+#include "notetemplates.h"
 #include "vault.h"
 
 #define OMAZETTEL_VERSION "0.1.0"
@@ -86,6 +87,11 @@ int main(int argc, char *argv[]) {
     QObject::connect(&vault, &Vault::rootPathChanged, &noteIndex,
                      [&vault, &noteIndex]() { noteIndex.setRoot(vault.rootPath()); });
     QObject::connect(&vault, &Vault::contentsChanged, &noteIndex, &NoteIndex::scheduleRescan);
+    // Note templates live in the notes folder, in .omazettel/note-templates.
+    NoteTemplates noteTemplates(&app);
+    noteTemplates.setRoot(vault.rootPath());
+    QObject::connect(&vault, &Vault::rootPathChanged, &noteTemplates,
+                     [&vault, &noteTemplates]() { noteTemplates.setRoot(vault.rootPath()); });
     QObject::connect(&app, &QGuiApplication::applicationStateChanged, &noteIndex,
                      [&noteIndex](Qt::ApplicationState state) {
                          if (state == Qt::ApplicationActive)
@@ -101,6 +107,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
     engine.rootContext()->setContextProperty(QStringLiteral("vault"), &vault);
     engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), &noteIndex);
+    engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), &noteTemplates);
 
     engine.load(QUrl(QStringLiteral("qrc:/Main.qml")));
     if (engine.rootObjects().isEmpty()) {

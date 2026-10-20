@@ -4,6 +4,8 @@
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
+#include <QRegularExpression>
+#include <QSaveFile>
 #include <QtConcurrent>
 
 #include <algorithm>
@@ -113,8 +115,13 @@ QHash<QString, NoteIndex::Note> NoteIndex::scan(const QString &root) {
     return notes;
 }
 
+bool NoteIndex::covers(const QString &path) const {
+    return !m_root.isEmpty() && path.startsWith(m_root + QLatin1Char('/')) && isNote(path)
+        && !path.mid(m_root.size()).contains(QLatin1String("/."));
+}
+
 void NoteIndex::updateFile(const QString &path) {
-    if (m_root.isEmpty() || !path.startsWith(m_root + QLatin1Char('/')) || !isNote(path))
+    if (!covers(path))
         return;
     if (QFileInfo(path).isFile())
         m_notes.insert(path, readNote(path));
@@ -270,4 +277,112 @@ QStringList NoteIndex::tagsOf(const QString &path) const {
 QString NoteIndex::titleOf(const QString &path) const {
     const auto it = m_notes.constFind(path);
     return it == m_notes.cend() ? stripNoteSuffix(QFileInfo(path).fileName()) : it->title;
+}
+
+QStringList NoteIndex::missingTargets(const QString &path) const {
+    QStringList missing;
+    const auto it = m_notes.constFind(path);
+    if (it == m_notes.cend())
+        return missing;
+    for (const Zettel::LinkUse &link : it->links) {
+        if (resolve(link.target, path).isEmpty()
+                && !missing.contains(link.target, Qt::CaseInsensitive))
+            missing.append(link.target);
+    }
+    return missing;
+}
+
+QVariantMap NoteIndex::movesForFolder(const QString &oldFolder, const QString &newFolder) const {
+    QVariantMap moves;
+    const QString prefix = oldFolder + QLatin1Char('/');
+    for (auto it = m_notes.cbegin(); it != m_notes.cend(); ++it) {
+        if (it.key().startsWith(prefix))
+            moves.insert(it.key(), newFolder + it.key().mid(oldFolder.size()));
+    }
+    return moves;
+}
+
+QString NoteIndex::rewriteText(const QString &text, const QString &notePath,
+                               const QVariantMap &moves) const {
+    m_lastRewriteCount = 0;
+    if (moves.isEmpty() || !text.contains(QLatin1String("[[")))
+        return text;
+
+    QStringList lines = text.split(QLatin1Char('\n'));
+    QChar fenceMarker;
+    int fence = 0;
+    static const QRegularExpression fenceRe(QStringLiteral("^ {0,3}(`{3,}|~{3,})"));
+    for (QString &line : lines) {
+        const QRegularExpressionMatch fenceMatch = fenceRe.match(line);
+        if (fence > 0) {
+            if (fenceMatch.hasMatch() && fenceMatch.capturedLength(1) >= fence
+                    && fenceMatch.captured(1).at(0) == fenceMarker)
+                fence = 0;
+            continue;
+        }
+        if (fenceMatch.hasMatch()) {
+            fence = int(fenceMatch.capturedLength(1));
+            fenceMarker = fenceMatch.captured(1).at(0);
+            continue;
+        }
+        const QList<Zettel::WikiLink> links = Zettel::wikiLinks(line);
+        // Right to left, so earlier offsets stay valid.
+        for (auto link = links.crbegin(); link != links.crend(); ++link) {
+            const QString oldTarget = resolve(link->target, notePath);
+            if (!moves.contains(oldTarget))
+                continue;
+            const QString newPath = moves.value(oldTarget).toString();
+            QString newTarget;
+            if (link->target.contains(QLatin1Char('/'))) {
+                newTarget = stripNoteSuffix(newPath.mid(m_root.size() + 1));
+            } else {
+                newTarget = stripNoteSuffix(QFileInfo(newPath).fileName());
+            }
+            if (newTarget == link->target)
+                continue;
+            line.replace(link->targetStart, link->target.size(), newTarget);
+            ++m_lastRewriteCount;
+        }
+    }
+    return m_lastRewriteCount > 0 ? lines.join(QLatin1Char('\n')) : text;
+}
+
+int NoteIndex::rewriteLinks(const QVariantMap &moves, const QString &skipPath) {
+    int total = 0;
+    m_lastRewriteFiles = 0;
+    QStringList paths = m_notes.keys();
+    std::sort(paths.begin(), paths.end());
+    for (const QString &path : std::as_const(paths)) {
+        if (path == skipPath)
+            continue;
+        // Only notes that link somewhere being moved.
+        bool relevant = false;
+        for (const Zettel::LinkUse &link : m_notes.value(path).links) {
+            if (moves.contains(resolve(link.target, path))) {
+                relevant = true;
+                break;
+            }
+        }
+        if (!relevant)
+            continue;
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+            continue;
+        const QString text = QString::fromUtf8(file.readAll());
+        file.close();
+        const QString rewritten = rewriteText(text, path, moves);
+        const int changed = m_lastRewriteCount;
+        if (changed == 0)
+            continue;
+        QSaveFile out(path);
+        out.setDirectWriteFallback(true);
+        if (!out.open(QIODevice::WriteOnly | QIODevice::Text))
+            continue;
+        out.write(rewritten.toUtf8());
+        if (out.commit()) {
+            total += changed;
+            ++m_lastRewriteFiles;
+        }
+    }
+    return total;
 }

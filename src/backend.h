@@ -112,6 +112,7 @@ public:
     // The [[ query being typed before position on its line, or null when
     // the caret is not inside an unfinished [[.
     Q_INVOKABLE QVariantMap wikiQueryAt(int position) const;
+    Q_INVOKABLE void showStatus(const QString &status) { setStatus(status); }
 
 signals:
     void fileUrlChanged();

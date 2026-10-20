@@ -59,6 +59,27 @@ public:
     Q_INVOKABLE QVariantList notesWithTag(const QString &tag) const;
     Q_INVOKABLE QStringList tagsOf(const QString &path) const;
     Q_INVOKABLE QString titleOf(const QString &path) const;
+    // Whether path is a note the index covers (inside the folder, not in a
+    // hidden folder such as .omazettel).
+    Q_INVOKABLE bool covers(const QString &path) const;
+    // [[link]] targets in a note that match no note yet.
+    Q_INVOKABLE QStringList missingTargets(const QString &path) const;
+
+    // Keeping links working when notes move. moves maps old note paths to
+    // new ones. Call these before the files are renamed, while the index
+    // still knows the old paths.
+    // Every note's moves when a folder moves.
+    Q_INVOKABLE QVariantMap movesForFolder(const QString &oldFolder, const QString &newFolder) const;
+    // Rewrites the links in text (the note at notePath) that point to a
+    // moved note. Returns the new text.
+    Q_INVOKABLE QString rewriteText(const QString &text, const QString &notePath,
+                                    const QVariantMap &moves) const;
+    // Rewrites links on disk in every note but skipPath (the note open in
+    // the editor). Returns how many links changed; filesChanged says in how
+    // many notes.
+    Q_INVOKABLE int rewriteLinks(const QVariantMap &moves, const QString &skipPath = QString());
+    Q_INVOKABLE int lastRewriteFiles() const { return m_lastRewriteFiles; }
+    Q_INVOKABLE int lastRewriteCount() const { return m_lastRewriteCount; }
 
     static Note readNote(const QString &path);
     static QHash<QString, Note> scan(const QString &root);
@@ -85,4 +106,6 @@ private:
     QTimer m_rescanTimer;
     QFutureWatcher<QHash<QString, Note>> m_watcher;
     bool m_rescanAgain = false;
+    int m_lastRewriteFiles = 0;
+    mutable int m_lastRewriteCount = 0;
 };

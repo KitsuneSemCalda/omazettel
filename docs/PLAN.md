@@ -115,7 +115,14 @@ After version 1, in rough order of value:
   highlighting in `src/markdownhighlighter_notes.cpp`, `NotePanel.qml`
   (tags + backlinks), `NotePicker.qml` (quick switcher and `[[` completer),
   a Tags tab in the sidebar, Ctrl+click / Ctrl+Enter to follow, back and forward.
-  Later: show links to missing notes dimmer; rename a note and update links to it.
+- **Note templates, auto-created linked notes, link updates (done, 2026-10-20):**
+  `src/notetemplates.*` (templates with pandoc YAML headers, placeholders,
+  per-template name/folder/existing settings; starters Note, Meeting, Daily,
+  Literature note), template picker in the new-note dialog, Ctrl+Shift+D daily
+  note, author name setting, muted YAML header in the editor. Missing link
+  targets are made on save (not the one being typed). Rename and move rewrite
+  links (`NoteIndex::rewriteText/rewriteLinks/movesForFolder`), the open note
+  in the editor and the rest on disk.
 
 ## Export templates (requested 2026-10-20, next phase)
 

@@ -23,6 +23,7 @@
 #include "backend.h"
 #include "markdownhighlighter.h"
 #include "noteindex.h"
+#include "notetemplates.h"
 #include "vault.h"
 
 #include <memory>
@@ -69,6 +70,7 @@ private slots:
         m_vault = std::make_unique<Vault>();
         m_vault->setSidebarVisible(false);
         m_noteIndex = std::make_unique<NoteIndex>();
+        m_noteTemplates = std::make_unique<NoteTemplates>();
     }
 
     void countsWords() {
@@ -265,6 +267,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -289,6 +292,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -338,6 +342,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -418,6 +423,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -463,6 +469,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -532,6 +539,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -582,6 +590,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -630,6 +639,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -668,6 +678,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -694,6 +705,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -722,6 +734,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -768,6 +781,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -848,6 +862,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -928,6 +943,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -1007,6 +1023,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -1603,6 +1620,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -1795,6 +1813,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -1864,6 +1883,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -1908,6 +1928,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -1940,6 +1961,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -1972,6 +1994,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -2015,6 +2038,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -2093,6 +2117,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -2243,6 +2268,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -2472,6 +2498,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -2538,6 +2565,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -2577,6 +2605,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -2612,6 +2641,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -2653,6 +2683,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -2687,6 +2718,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QScopedPointer<QObject> object(component.create());
         QVERIFY2(object, qPrintable(component.errorString()));
@@ -3059,6 +3091,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
         engine.rootContext()->setContextProperty(QStringLiteral("vault"), m_vault.get());
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_noteIndex.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -3534,6 +3567,7 @@ private:
     QTemporaryDir m_settingsDirectory;
     std::unique_ptr<Vault> m_vault;
     std::unique_ptr<NoteIndex> m_noteIndex;
+    std::unique_ptr<NoteTemplates> m_noteTemplates;
 };
 
 QTEST_MAIN(OmaZettelTest)

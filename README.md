@@ -8,7 +8,7 @@ by David Heinemeier Hansson. It is not made or endorsed by Omacom or the
 Omarchy project.
 
 > **Status: early development (0.1.0).** Working: the notes folder sidebar,
-> `[[wiki links]]`, backlinks and tags. Still to come: pandoc export with
+> `[[wiki links]]`, backlinks, tags and note templates. Still to come: pandoc export with
 > custom templates, and search across notes. See `docs/PLAN.md`.
 
 ## Notes folder
@@ -28,14 +28,49 @@ keep editing the same folder in VS Code, track it with git or run pandoc on it.
 - Drag the sidebar's right edge to resize it.
 - OmaZettel remembers the folder, recent folders and the last open note.
 
+## Note templates
+
+New notes (Ctrl+N or the sidebar's new-note button) start from a template you
+pick; OmaZettel remembers the last one. Ctrl+Shift+D opens today's daily note,
+making it the first time.
+
+Templates are Markdown files in `<notes folder>/.omazettel/note-templates/`.
+The first time you make a note, OmaZettel adds four: **Note** (a Zettelkasten
+note with an ID), **Meeting**, **Daily** and **Literature note**. Edit them, or
+add your own, from the sidebar's `…` menu → Edit note templates, or in any
+editor. Each starts with a pandoc YAML header (title, author, date, tags, …),
+so notes export with the right metadata.
+
+Placeholders: `{{title}}`, `{{author}}` (set it in the `…` menu; defaults to
+your account's full name), `{{date}}`, `{{date:dddd d MMMM yyyy}}` (any Qt date
+format), `{{time}}`, `{{datetime}}`, `{{weekday}}`, `{{id}}` (yyyyMMddHHmmss),
+`{{folder}}` and `{{cursor}}` (where typing starts). In the YAML header, values
+are escaped so quotes in a title stay valid.
+
+An optional first line sets how the note is made, and is left out of it:
+
+```
+<!-- omazettel: name="{{date}} {{title}}" folder="Meetings" existing="open" -->
+```
+
+`name` is the file name (default `{{title}}`), `folder` is where it goes
+inside the notes folder (default: the selected folder) and `existing="open"`
+opens a note of that name instead of making a second one (the Daily template
+uses it). A template that doesn't use `{{title}}` doesn't ask for one.
+
 ## Links and tags
 
 - Link notes with `[[Note name]]`. `[[folder/Note]]`, `[[Note#Heading]]` and
   `[[Note|label]]` work too. Typing `[[` suggests notes; Up, Down and Enter
   pick one.
 - Ctrl+click a link, or put the caret in it and press Ctrl+Enter, to open it.
-  A link to a note that doesn't exist yet creates it next to the current
-  note. Web links open in the browser. Alt+Left and Alt+Right go back and
+- A link to a note that doesn't exist yet gets that note made when the note
+  is saved (auto-save included), next to the linking note or at the path the
+  link names, from the Note template. The link the caret is still in waits,
+  so half-typed names don't become notes.
+- Renaming or moving a note, or a folder of notes, updates every `[[link]]`
+  to it, keeping `#heading` and `|label`. Path links (`[[folder/Note]]`) get
+  the new path. The status bar says how many links changed. Web links open in the browser. Alt+Left and Alt+Right go back and
   forward.
 - Tag notes with `#tag` (nested tags like `#project/client` work), or with
   `tags: [a, b]` or `keywords:` in YAML front matter.
@@ -66,6 +101,7 @@ There is no package release yet. Build from source as described in
 - `Ctrl+P` opens the system print dialog.
 - `Ctrl+N` makes a new note in the notes folder.
 - `Ctrl+Shift+N` opens a new OmaZettel window.
+- `Ctrl+Shift+D` opens today's daily note.
 - `Ctrl+\` shows or hides the notes sidebar.
 - `Ctrl+Z`, `Ctrl+Shift+Z`, and `Ctrl+Y` handle undo and redo.
 - `Super+F` toggles fullscreen. Qt maps this key as `Meta+F`.

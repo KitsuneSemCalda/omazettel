@@ -39,6 +39,9 @@ Rectangle {
     signal trashRequested(string path)
     signal chooseFolderRequested()
     signal moveRequested(string path, string folder)
+    signal dailyNoteRequested()
+    signal editTemplateRequested(string path)
+    signal authorRequested()
 
     // "files" or "tags".
     property string mode: "files"
@@ -330,6 +333,36 @@ Rectangle {
                     onTriggered: vault.openFolder(modelData)
                 }
             }
+        }
+        MenuSeparator { visible: vault.isOpen }
+        MenuItem {
+            text: "Today's daily note"
+            enabled: vault.isOpen
+            onTriggered: root.dailyNoteRequested()
+        }
+        Menu {
+            id: templatesMenu
+            title: "Edit note templates"
+            enabled: vault.isOpen
+            onAboutToShow: noteTemplates.ensureDefaults()
+            Repeater {
+                model: noteTemplates.revision >= 0 && vault.isOpen ? noteTemplates.list() : []
+                MenuItem {
+                    required property var modelData
+                    text: modelData.name
+                    onTriggered: root.editTemplateRequested(modelData.path)
+                }
+            }
+            MenuSeparator {}
+            MenuItem {
+                text: "Open templates folder"
+                onTriggered: Qt.openUrlExternally(vault.urlForPath(noteTemplates.folder))
+            }
+        }
+        MenuItem {
+            text: "Author name…"
+            enabled: vault.isOpen
+            onTriggered: root.authorRequested()
         }
         MenuSeparator { visible: vault.isOpen }
         MenuItem {

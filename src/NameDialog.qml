@@ -22,8 +22,35 @@ Dialog {
     property string acceptText: "OK"
     property bool askName: true
     property var pendingCallback: null
+    // New notes: [{name, needsTitle}] to pick from; empty hides the picker.
+    property var templates: []
+    property int templateIndex: 0
+    readonly property var chosenTemplate: templates.length > 0 && templateIndex >= 0
+                                          && templateIndex < templates.length ? templates[templateIndex] : null
+    readonly property bool wantsName: askName && (!chosenTemplate || chosenTemplate.needsTitle)
+
+    // New note: pick a template (or "Blank note") and, if it needs one, a title.
+    function askForNote(templateList, defaultName, callback) {
+        heading = "New note";
+        message = "";
+        acceptText = "Create";
+        askName = true;
+        nameField.text = "";
+        var choices = templateList.slice();
+        choices.push({ name: "Blank note", needsTitle: true, blank: true });
+        templates = choices;
+        var index = 0;
+        for (var i = 0; i < choices.length; ++i) {
+            if (choices[i].name === defaultName)
+                index = i;
+        }
+        templateIndex = index;
+        pendingCallback = callback;
+        open();
+    }
 
     function askForName(headingText, initialName, buttonText, callback) {
+        templates = [];
         heading = headingText;
         message = "";
         acceptText = buttonText;
@@ -34,6 +61,7 @@ Dialog {
     }
 
     function confirm(headingText, messageText, buttonText, callback) {
+        templates = [];
         heading = headingText;
         message = messageText;
         acceptText = buttonText;
@@ -45,9 +73,16 @@ Dialog {
     function finish() {
         var callback = pendingCallback;
         var name = nameField.text;
+        var template = chosenTemplate;
         pendingCallback = null;
+        if (wantsName && name.trim().length === 0)
+            return;
         close();
-        if (callback && (!askName || name.trim().length > 0))
+        if (!callback)
+            return;
+        if (templates.length > 0)
+            callback(name, template.blank ? "" : template.name);
+        else
             callback(name);
     }
 
@@ -60,7 +95,7 @@ Dialog {
     padding: 20
 
     onOpened: {
-        if (askName) {
+        if (wantsName) {
             nameField.forceActiveFocus();
             nameField.selectAll();
         } else {
@@ -68,6 +103,8 @@ Dialog {
         }
     }
     onClosed: pendingCallback = null
+
+    Overlay.modal: Rectangle { color: Qt.rgba(0, 0, 0, 0.5) }
 
     background: Rectangle {
         color: root.darkMode ? "#1a1a1a" : "#ffffff"
@@ -96,10 +133,37 @@ Dialog {
             font.pixelSize: Math.round(13 * root.textScale)
         }
 
+        ComboBox {
+            id: templateBox
+            objectName: "templatePicker"
+            width: parent.width
+            visible: root.templates.length > 0
+            model: root.templates
+            textRole: "name"
+            currentIndex: root.templateIndex
+            onActivated: function(index) {
+                root.templateIndex = index;
+                if (root.wantsName)
+                    nameField.forceActiveFocus();
+            }
+            font.family: "IBM Plex Mono"
+            font.pixelSize: Math.round(13 * root.textScale)
+        }
+
+        Label {
+            width: parent.width
+            visible: root.templates.length > 0 && !root.wantsName
+            text: "This template names the note itself."
+            color: root.textColor
+            opacity: 0.7
+            font.family: "IBM Plex Mono"
+            font.pixelSize: Math.round(12 * root.textScale)
+        }
+
         Rectangle {
             width: parent.width
             height: Math.round(36 * root.textScale)
-            visible: root.askName
+            visible: root.wantsName
             color: root.darkMode ? "#202020" : "#f6f6f6"
             border.color: nameField.activeFocus ? root.activeButtonColor
                                                 : (root.darkMode ? "#424242" : "#c8c8c8")
@@ -150,7 +214,7 @@ Dialog {
                 darkMode: root.darkMode
                 textScale: root.textScale
                 activeColor: root.activeButtonColor
-                enabled: !root.askName || nameField.text.trim().length > 0
+                enabled: !root.wantsName || nameField.text.trim().length > 0
                 onClicked: root.finish()
             }
         }

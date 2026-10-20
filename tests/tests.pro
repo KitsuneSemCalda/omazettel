@@ -12,6 +12,7 @@ SOURCES += \
     ../src/markdownhighlighter.cpp \
     ../src/markdownhighlighter_notes.cpp \
     ../src/noteindex.cpp \
+    ../src/notetemplates.cpp \
     ../src/zettel.cpp \
     ../src/vault.cpp
 HEADERS += \
@@ -19,6 +20,7 @@ HEADERS += \
     ../src/cli.h \
     ../src/markdownhighlighter.h \
     ../src/noteindex.h \
+    ../src/notetemplates.h \
     ../src/zettel.h \
     ../src/vault.h
 

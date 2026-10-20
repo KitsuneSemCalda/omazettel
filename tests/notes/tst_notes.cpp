@@ -13,6 +13,7 @@
 
 #include "backend.h"
 #include "noteindex.h"
+#include "notetemplates.h"
 #include "vault.h"
 #include "zettel.h"
 
@@ -479,7 +480,8 @@ private slots:
         const QString created = dir.filePath(QStringLiteral("New idea.md"));
         QVERIFY(QFile::exists(created));
         QCOMPARE(backend.fileUrl(), QUrl::fromLocalFile(created));
-        QCOMPARE(readFile(created), QStringLiteral("# New idea\n\n"));
+        // From the Note template, with its pandoc header.
+        QVERIFY(readFile(created).startsWith(QStringLiteral("---\ntitle: \"New idea\"\n")));
     }
 
     void completesWikiLinks() {
@@ -567,6 +569,225 @@ private slots:
         vault.setPanelVisible(false);
         QVERIFY(!panel->isVisible());
         QCOMPARE(window->property("panelWidth").toInt(), 0);
+    }
+
+
+    // ── Note templates ──────────────────────────────────────────────────────
+
+    void rendersTemplates() {
+        const QDateTime now(QDate(2026, 10, 20), QTime(9, 5, 7));
+        const auto rendered = NoteTemplates::render(QStringLiteral(
+            "<!-- omazettel: name=\"{{date}} {{title}}\" folder=\"Meetings\" existing=\"open\" -->\n"
+            "---\ntitle: \"{{title}}\"\nauthor: \"{{author}}\"\ndate: \"{{date}}\"\nid: {{id}}\n---\n\n"
+            "# {{title}}\n{{date:yyyy/MM}} {{time}} in {{folder}} {{unknown}}\n- {{cursor}}\n"),
+            QStringLiteral("Plan \"Q4\""), QStringLiteral("Matt"), QStringLiteral("Work"), now);
+        QCOMPARE(rendered.fileName, QStringLiteral("2026-10-20 Plan \"Q4\""));
+        QCOMPARE(rendered.folder, QStringLiteral("Meetings"));
+        QVERIFY(rendered.openExisting);
+        // Quotes are escaped in the YAML header only.
+        QCOMPARE(rendered.content, QStringLiteral(
+            "---\ntitle: \"Plan \\\"Q4\\\"\"\nauthor: \"Matt\"\ndate: \"2026-10-20\"\nid: 20261020090507\n---\n\n"
+            "# Plan \"Q4\"\n2026/10 09:05 in Work {{unknown}}\n- \n"));
+        QCOMPARE(rendered.cursor, rendered.content.size() - 1);
+
+        const auto plain = NoteTemplates::render(QStringLiteral("Just {{title}}"), QStringLiteral("a/b"),
+                                                 QString(), QString(), now);
+        QCOMPARE(plain.fileName, QStringLiteral("a-b"));
+        QCOMPARE(plain.cursor, -1);
+        QVERIFY(!plain.openExisting);
+    }
+
+    void startersCarryAPandocHeader() {
+        for (const auto &[name, text] : NoteTemplates::starterTemplates()) {
+            const auto rendered = NoteTemplates::render(text, QStringLiteral("T"), QStringLiteral("A"),
+                                                        QString(), QDateTime::currentDateTime());
+            QVERIFY2(rendered.content.startsWith(QStringLiteral("---\ntitle: ")), qPrintable(name));
+            QVERIFY2(rendered.content.contains(QStringLiteral("\nauthor: \"A\"\n")), qPrintable(name));
+            QVERIFY2(rendered.content.contains(QStringLiteral("\ndate: \"")), qPrintable(name));
+            QVERIFY2(rendered.cursor > 0, qPrintable(name));
+            QVERIFY2(!Zettel::parse(rendered.content).title.isEmpty(), qPrintable(name));
+        }
+    }
+
+    void createsNotesFromTemplates() {
+        QTemporaryDir dir;
+        NoteTemplates templates;
+        templates.setRoot(dir.path());
+        templates.setAuthor(QStringLiteral("Test Author"));
+        templates.ensureDefaults();
+        QCOMPARE(templates.list().size(), 4);
+        QVERIFY(templates.needsTitle(QStringLiteral("Meeting")));
+        QVERIFY(!templates.needsTitle(QStringLiteral("Daily")));
+
+        // Defaults are written once; a deleted starter stays deleted.
+        QFile::remove(templates.pathOf(QStringLiteral("Literature note")));
+        templates.ensureDefaults();
+        QCOMPARE(templates.list().size(), 3);
+
+        const QString today = QDate::currentDate().toString(Qt::ISODate);
+        const QVariantMap meeting = templates.create(QStringLiteral("Meeting"), QStringLiteral("Kickoff"), dir.path());
+        QCOMPARE(meeting.value(QStringLiteral("path")).toString(),
+                 dir.filePath(QStringLiteral("Meetings/%1 Kickoff.md").arg(today)));
+        const QString text = readFile(meeting.value(QStringLiteral("path")).toString());
+        QVERIFY(text.contains(QStringLiteral("title: \"Kickoff\"")));
+        QVERIFY(text.contains(QStringLiteral("author: \"Test Author\"")));
+        QVERIFY(!text.contains(QStringLiteral("omazettel:")));
+        QVERIFY(meeting.value(QStringLiteral("cursor")).toInt() > 0);
+
+        // Daily: one per day, opened again rather than duplicated.
+        const QVariantMap daily = templates.create(QStringLiteral("Daily"), QString(), dir.path());
+        QCOMPARE(daily.value(QStringLiteral("path")).toString(), dir.filePath(QStringLiteral("Daily/%1.md").arg(today)));
+        QVERIFY(!daily.value(QStringLiteral("existed")).toBool());
+        const QVariantMap again = templates.create(QStringLiteral("Daily"), QString(), dir.path());
+        QCOMPARE(again.value(QStringLiteral("path")), daily.value(QStringLiteral("path")));
+        QVERIFY(again.value(QStringLiteral("existed")).toBool());
+
+        // An exact name (from a [[link]]) wins over the template's own.
+        const QVariantMap exact = templates.create(QStringLiteral("Meeting"), QStringLiteral("Linked"),
+                                                   dir.filePath(QStringLiteral("Here")), QStringLiteral("Linked"));
+        QCOMPARE(exact.value(QStringLiteral("path")).toString(), dir.filePath(QStringLiteral("Here/Linked.md")));
+
+        QVERIFY(templates.create(QStringLiteral("Nope"), QStringLiteral("x"), dir.path()).isEmpty());
+        QVERIFY(!templates.lastError().isEmpty());
+    }
+
+    void newNoteDialogUsesTemplates() {
+        QTemporaryDir dir;
+        Backend backend;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+        QVERIFY(window);
+        QMetaObject::invokeMethod(window.get(), "newNote", Q_ARG(QVariant, vault.rootPath()));
+        auto *dialog = window->findChild<QObject *>(QStringLiteral("nameDialog"));
+        QVERIFY(dialog && dialog->property("opened").toBool() || dialog->property("visible").toBool());
+        const QVariantList choices = dialog->property("templates").toList();
+        QCOMPARE(choices.size(), 5); // Four starters and Blank note.
+        QCOMPARE(dialog->property("chosenTemplate").toMap().value(QStringLiteral("name")).toString(), QStringLiteral("Note"));
+
+        auto *field = window->findChild<QObject *>(QStringLiteral("nameField"));
+        field->setProperty("text", QStringLiteral("Fresh idea"));
+        QMetaObject::invokeMethod(dialog, "finish");
+        const QString path = dir.filePath(QStringLiteral("Fresh idea.md"));
+        QVERIFY(QFile::exists(path));
+        QCOMPARE(backend.fileUrl(), QUrl::fromLocalFile(path));
+        QVERIFY(readFile(path).startsWith(QStringLiteral("---\ntitle: \"Fresh idea\"")));
+        // The caret starts where the template said.
+        auto *editor = window->findChild<QObject *>(QStringLiteral("sourceEditor"));
+        QCOMPARE(editor->property("cursorPosition").toInt(), readFile(path).indexOf(QStringLiteral("---\n\n")) + 5);
+
+        // Daily note twice: the same note.
+        QMetaObject::invokeMethod(window.get(), "openDailyNote");
+        const QUrl daily = backend.fileUrl();
+        QVERIFY(daily.toLocalFile().endsWith(QDate::currentDate().toString(Qt::ISODate) + QStringLiteral(".md")));
+        QMetaObject::invokeMethod(window.get(), "openNote", Q_ARG(QVariant, QUrl::fromLocalFile(path)));
+        QMetaObject::invokeMethod(window.get(), "openDailyNote");
+        QCOMPARE(backend.fileUrl(), daily);
+    }
+
+    // ── Linked notes are made, and links follow renames ─────────────────────
+
+    void createsMissingLinkedNotesOnSave() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("Hub.md")), "# Hub\n");
+        Backend backend;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+        QMetaObject::invokeMethod(window.get(), "openNote",
+                                  Q_ARG(QVariant, QUrl::fromLocalFile(dir.filePath(QStringLiteral("Hub.md")))));
+        auto *editor = window->findChild<QObject *>(QStringLiteral("sourceEditor"));
+
+        // The caret is still in [[Beta]], which may be half typed.
+        const QString text = QStringLiteral("# Hub\n\n[[Alpha]] and [[Sub/Gamma]] and [[../Escape]] and [[Beta]]");
+        editor->setProperty("text", text);
+        editor->setProperty("cursorPosition", text.size() - 3);
+        backend.save();
+        QVERIFY(QFile::exists(dir.filePath(QStringLiteral("Alpha.md"))));
+        QVERIFY(QFile::exists(dir.filePath(QStringLiteral("Sub/Gamma.md"))));
+        QVERIFY(!QFile::exists(dir.filePath(QStringLiteral("Beta.md"))));
+        QVERIFY(!QFileInfo::exists(QFileInfo(dir.path()).absolutePath() + QStringLiteral("/Escape.md")));
+        QVERIFY(readFile(dir.filePath(QStringLiteral("Alpha.md"))).contains(QStringLiteral("title: \"Alpha\"")));
+
+        // Once the caret leaves it, the next save makes it.
+        editor->setProperty("cursorPosition", 0);
+        editor->setProperty("text", text + QStringLiteral("."));
+        backend.save();
+        QVERIFY(QFile::exists(dir.filePath(QStringLiteral("Beta.md"))));
+        QCOMPARE(backend.fileUrl(), QUrl::fromLocalFile(dir.filePath(QStringLiteral("Hub.md"))));
+    }
+
+    void renamingANoteUpdatesLinksToIt() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("Sub/Target.md")), "# Target\n\nSelf: [[Target]]\n");
+        writeFile(dir.filePath(QStringLiteral("A.md")), "See [[Target]], [[target#Part|label]] and [[Other]].\n```\n[[Target]]\n```\n");
+        writeFile(dir.filePath(QStringLiteral("B.md")), "Path: [[Sub/Target]]\n");
+        writeFile(dir.filePath(QStringLiteral("Other.md")), "x\n");
+        writeFile(dir.filePath(QStringLiteral("Open.md")), "Open links to [[Target]].\n");
+        Backend backend;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+        QMetaObject::invokeMethod(window.get(), "openNote",
+                                  Q_ARG(QVariant, QUrl::fromLocalFile(dir.filePath(QStringLiteral("Open.md")))));
+
+        renameThroughDialog(window.get(), dir.filePath(QStringLiteral("Sub/Target.md")), QStringLiteral("Renamed"));
+
+        QVERIFY(QFile::exists(dir.filePath(QStringLiteral("Sub/Renamed.md"))));
+        QCOMPARE(readFile(dir.filePath(QStringLiteral("A.md"))),
+                 QStringLiteral("See [[Renamed]], [[Renamed#Part|label]] and [[Other]].\n```\n[[Target]]\n```\n"));
+        QCOMPARE(readFile(dir.filePath(QStringLiteral("B.md"))), QStringLiteral("Path: [[Sub/Renamed]]\n"));
+        QCOMPARE(readFile(dir.filePath(QStringLiteral("Sub/Renamed.md"))), QStringLiteral("# Target\n\nSelf: [[Renamed]]\n"));
+        // The open note changes in the editor, then saves without a prompt.
+        auto *editor = window->findChild<QObject *>(QStringLiteral("sourceEditor"));
+        QCOMPARE(editor->property("text").toString(), QStringLiteral("Open links to [[Renamed]].\n"));
+        QCOMPARE(backend.status(), QStringLiteral("Updated 5 links in 4 notes"));
+        QVERIFY(backend.flushAutoSave());
+        QCOMPARE(readFile(dir.filePath(QStringLiteral("Open.md"))), QStringLiteral("Open links to [[Renamed]].\n"));
+    }
+
+    void renamingTheOpenNoteUpdatesLinksToIt() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("Me.md")), "# Me\n");
+        writeFile(dir.filePath(QStringLiteral("Fan.md")), "[[Me]]\n");
+        Backend backend;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+        QMetaObject::invokeMethod(window.get(), "openNote",
+                                  Q_ARG(QVariant, QUrl::fromLocalFile(dir.filePath(QStringLiteral("Me.md")))));
+        renameThroughDialog(window.get(), dir.filePath(QStringLiteral("Me.md")), QStringLiteral("Myself"));
+        QCOMPARE(backend.fileUrl(), QUrl::fromLocalFile(dir.filePath(QStringLiteral("Myself.md"))));
+        QCOMPARE(readFile(dir.filePath(QStringLiteral("Fan.md"))), QStringLiteral("[[Myself]]\n"));
+    }
+
+    void movingNotesAndFoldersUpdatesPathLinks() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("Old/Deep/Note.md")), "# Note\n");
+        writeFile(dir.filePath(QStringLiteral("Links.md")), "[[Note]] and [[Old/Deep/Note]] and [[Deep/Note]]\n");
+        Backend backend;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        const QString archive = vault.createFolder(vault.rootPath(), QStringLiteral("Archive"));
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+
+        // Moving a folder: name links stay, path links follow.
+        QMetaObject::invokeMethod(window.get(), "moveItem",
+                                  Q_ARG(QVariant, dir.filePath(QStringLiteral("Old/Deep"))), Q_ARG(QVariant, archive));
+        QVERIFY(QFile::exists(dir.filePath(QStringLiteral("Archive/Deep/Note.md"))));
+        QCOMPARE(readFile(dir.filePath(QStringLiteral("Links.md"))),
+                 QStringLiteral("[[Note]] and [[Archive/Deep/Note]] and [[Archive/Deep/Note]]\n"));
+
+        // Renaming a folder too.
+        m_windowIndex->rescanNow();
+        renameThroughDialog(window.get(), dir.filePath(QStringLiteral("Archive")), QStringLiteral("Kept"));
+        QCOMPARE(readFile(dir.filePath(QStringLiteral("Links.md"))),
+                 QStringLiteral("[[Note]] and [[Kept/Deep/Note]] and [[Kept/Deep/Note]]\n"));
     }
 
     // ── The window ──────────────────────────────────────────────────────────
@@ -714,6 +935,16 @@ private slots:
     }
 
 private:
+    // Starts a rename from the sidebar and answers the name dialog.
+    void renameThroughDialog(QObject *window, const QString &path, const QString &newName) {
+        QMetaObject::invokeMethod(window, "renameItem", Q_ARG(QVariant, path));
+        auto *field = window->findChild<QObject *>(QStringLiteral("nameField"));
+        auto *dialog = window->findChild<QObject *>(QStringLiteral("nameDialog"));
+        QVERIFY(field && dialog);
+        field->setProperty("text", newName);
+        QMetaObject::invokeMethod(dialog, "finish");
+    }
+
     // The tree row whose label reads text.
     static QQuickItem *rowLabelled(QQuickWindow *window, const QString &text) {
         auto *tree = window->findChild<QQuickItem *>(QStringLiteral("notesTree"));
@@ -750,6 +981,9 @@ private:
         m_windowIndex->setRoot(vault.rootPath());
         m_windowIndex->rescanNow();
         engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), m_windowIndex.get());
+        m_windowTemplates = std::make_unique<NoteTemplates>();
+        m_windowTemplates->setRoot(vault.rootPath());
+        engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_windowTemplates.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         if (!component.isReady()) {
             qWarning() << component.errorString();
@@ -764,6 +998,7 @@ private:
     QTemporaryDir m_settingsDirectory;
     QQmlEngine m_engine;
     std::unique_ptr<NoteIndex> m_windowIndex;
+    std::unique_ptr<NoteTemplates> m_windowTemplates;
 };
 
 QTEST_MAIN(NotesTest)
