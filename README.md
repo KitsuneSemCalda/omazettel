@@ -43,7 +43,7 @@ There is no package release yet. Build from source as described in
 - `Ctrl+P` opens the system print dialog.
 - `Ctrl+N` makes a new note in the notes folder.
 - `Ctrl+Shift+N` opens a new OmaZettel window.
-- `Ctrl+\\` shows or hides the notes sidebar.
+- `Ctrl+\` shows or hides the notes sidebar.
 - `Ctrl+Z`, `Ctrl+Shift+Z`, and `Ctrl+Y` handle undo and redo.
 - `Super+F` toggles fullscreen. Qt maps this key as `Meta+F`.
 - `Ctrl+F` searches the document. Use `Enter` or `Ctrl+G` for the next match and `Shift+Enter` for the previous match.
