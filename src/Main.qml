@@ -124,6 +124,45 @@ ApplicationWindow {
         navigatingHistory = false;
     }
 
+    // ── Outline and search results ──────────────────────────────────────────
+
+    // The open note's headings, re-read shortly after typing stops.
+    property var outlineHeadings: []
+
+    Timer {
+        id: outlineDelay
+        interval: 300
+        onTriggered: win.outlineHeadings = backend.outline()
+    }
+
+    // Puts the caret at position (selecting length characters) and scrolls
+    // there.
+    function showPosition(position, length) {
+        if (position < 0)
+            return;
+        var start = Math.min(position, editor.length);
+        if (length > 0)
+            editor.select(start, Math.min(start + length, editor.length));
+        else
+            editor.cursorPosition = start;
+        editorFlick.ensureCursorVisible();
+        editor.forceActiveFocus();
+    }
+
+    function openSearchResult(path, position, length) {
+        openNote(vault.urlForPath(path));
+        if (currentPath() === path)
+            showPosition(position, length);
+    }
+
+    function showNotesSearch() {
+        if (!vault.isOpen)
+            return;
+        vault.sidebarVisible = true;
+        var selected = editor.selectedText;
+        sidebar.showSearch(selected.indexOf("\u2029") < 0 && selected.length < 80 ? selected : "");
+    }
+
     // ── Making notes ────────────────────────────────────────────────────────
 
     // Notes made from links and the quick switcher use this template when
@@ -181,9 +220,13 @@ ApplicationWindow {
     }
 
     // Opens the note a [[link]] names, making it when there is none yet.
-    function followWikiLink(target) {
+    function followWikiLink(target, heading) {
         if (!vault.isOpen)
             return;
+        if (target.length === 0 && heading && heading.length > 0) {
+            showPosition(backend.headingPosition(heading), 0);
+            return;
+        }
         var path = noteIndex.resolve(target, currentPath());
         if (path.length === 0) {
             var place = linkTargetPlace(target, currentPath());
@@ -194,6 +237,8 @@ ApplicationWindow {
             path = result.path;
         }
         openNote(vault.urlForPath(path));
+        if (heading && heading.length > 0 && currentPath() === path)
+            showPosition(backend.headingPosition(heading), 0);
     }
 
     // After a save: every [[link]] in the note that points nowhere gets its
@@ -260,8 +305,9 @@ ApplicationWindow {
     // opens in the browser, a link to a local .md file opens here.
     function followLinkAt(position) {
         var target = backend.wikiLinkAt(position);
-        if (target.length > 0) {
-            followWikiLink(target);
+        var heading = backend.wikiHeadingAt(position);
+        if (target.length > 0 || heading.length > 0) {
+            followWikiLink(target, heading);
             return true;
         }
         var url = backend.linkUrlAt(position);
@@ -610,6 +656,11 @@ ApplicationWindow {
     }
 
     Shortcut {
+        sequence: "Ctrl+Shift+F"
+        onActivated: win.showNotesSearch()
+    }
+
+    Shortcut {
         sequence: "Ctrl+Shift+E"
         onActivated: win.exportNote(win.currentPath())
     }
@@ -826,6 +877,7 @@ ApplicationWindow {
         onMoveRequested: function(path, folder) { win.moveItem(path, folder); }
         onDailyNoteRequested: win.openDailyNote()
         onExportRequested: function(path) { win.exportNote(path); }
+        onSearchResultRequested: function(path, position, length) { win.openSearchResult(path, position, length); }
         onEditTemplateRequested: function(path) { win.openNote(vault.urlForPath(path)); }
         onAuthorRequested: nameDialog.askForName("Author name", noteTemplates.author, "Save",
                                                  function(name) { noteTemplates.author = name; })
@@ -851,6 +903,9 @@ ApplicationWindow {
             vault.sidebarVisible = true;
             sidebar.showTag(tag);
         }
+        headings: win.outlineHeadings
+        cursorPosition: editor.cursorPosition
+        onHeadingRequested: function(position) { win.showPosition(position, 0); }
     }
 
     ExportDialog {
@@ -908,6 +963,7 @@ ApplicationWindow {
     Connections {
         target: backend
         function onFileUrlChanged() {
+            win.outlineHeadings = backend.outline();
             vault.rememberLastNote(backend.fileUrl);
             sidebar.reveal(win.currentPath());
         }
@@ -1503,6 +1559,7 @@ ApplicationWindow {
 
                 onTextChanged: {
                     hoveredLinkUrl = "";
+                    outlineDelay.restart();
                     if (win.searchUpdating)
                         return;
                     var contentChanged = backend.editorTextChanged();

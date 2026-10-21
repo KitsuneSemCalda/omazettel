@@ -1,5 +1,7 @@
 #include "noteindex.h"
 
+#include "markdownhighlighter.h"
+
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
@@ -91,7 +93,8 @@ NoteIndex::Note NoteIndex::readNote(const QString &path) {
     note.name = stripNoteSuffix(QFileInfo(path).fileName());
     QFile file(path);
     if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        const Zettel::ParsedNote parsed = Zettel::parse(QString::fromUtf8(file.readAll()));
+        note.text = QString::fromUtf8(file.readAll());
+        const Zettel::ParsedNote parsed = Zettel::parse(note.text);
         note.title = parsed.title;
         note.tags = parsed.tags;
         note.links = parsed.links;
@@ -328,6 +331,8 @@ QString NoteIndex::rewriteText(const QString &text, const QString &notePath,
         const QList<Zettel::WikiLink> links = Zettel::wikiLinks(line);
         // Right to left, so earlier offsets stay valid.
         for (auto link = links.crbegin(); link != links.crend(); ++link) {
+            if (link->target.isEmpty())
+                continue;
             const QString oldTarget = resolve(link->target, notePath);
             if (!moves.contains(oldTarget))
                 continue;
@@ -385,4 +390,137 @@ int NoteIndex::rewriteLinks(const QVariantMap &moves, const QString &skipPath) {
         }
     }
     return total;
+}
+
+NoteIndex::Query NoteIndex::parseQuery(const QString &query) {
+    Query parsed;
+    static const QRegularExpression tokenRe(QStringLiteral("\"([^\"]*)\"?|(\\S+)"));
+    auto it = tokenRe.globalMatch(query);
+    while (it.hasNext()) {
+        const QRegularExpressionMatch match = it.next();
+        if (match.capturedStart(1) >= 0) {
+            const QString phrase = match.captured(1).simplified();
+            if (!phrase.isEmpty())
+                parsed.terms.append(phrase);
+            continue;
+        }
+        const QString word = match.captured(2);
+        if (word.startsWith(QLatin1Char('#')) && word.size() > 1)
+            parsed.tags.append(word.mid(1).toLower());
+        else if (word.startsWith(QLatin1String("tag:"), Qt::CaseInsensitive) && word.size() > 4)
+            parsed.tags.append(word.mid(4).toLower());
+        else
+            parsed.terms.append(word);
+    }
+    return parsed;
+}
+
+QVariantList NoteIndex::search(const QString &query, const QString &highlightColor, int limit) const {
+    const Query parsed = parseQuery(query);
+    if (parsed.terms.isEmpty() && parsed.tags.isEmpty())
+        return {};
+
+    struct Hit {
+        const Note *note;
+        int score;
+        QList<QPair<int, int>> matches; // start, length
+    };
+    QList<Hit> hits;
+    for (const Note &note : m_notes) {
+        if (!parsed.tags.isEmpty()) {
+            bool tagged = true;
+            for (const QString &wanted : parsed.tags) {
+                bool found = false;
+                for (const QString &tag : note.tags) {
+                    const QString lower = tag.toLower();
+                    if (lower == wanted || lower.startsWith(wanted + QLatin1Char('/'))) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    tagged = false;
+                    break;
+                }
+            }
+            if (!tagged)
+                continue;
+        }
+
+        Hit hit{&note, 0, {}};
+        bool all = true;
+        for (const QString &term : parsed.terms) {
+            const QList<int> inText = MarkdownHighlighter::findMatches(note.text, term);
+            const bool inTitle = !MarkdownHighlighter::findMatches(note.title, term).isEmpty()
+                || !MarkdownHighlighter::findMatches(note.name, term).isEmpty();
+            if (inText.isEmpty() && !inTitle) {
+                all = false;
+                break;
+            }
+            if (inTitle)
+                hit.score += 100;
+            hit.score += int(qMin<qsizetype>(inText.size(), 20));
+            for (int start : inText)
+                hit.matches.append({start, int(term.size())});
+        }
+        if (!all)
+            continue;
+        std::sort(hit.matches.begin(), hit.matches.end());
+        hits.append(hit);
+    }
+
+    std::sort(hits.begin(), hits.end(), [](const Hit &a, const Hit &b) {
+        if (a.score != b.score)
+            return a.score > b.score;
+        return a.note->title.compare(b.note->title, Qt::CaseInsensitive) < 0;
+    });
+
+    const QString open = highlightColor.isEmpty()
+        ? QStringLiteral("<b>") : QStringLiteral("<b><font color=\"%1\">").arg(highlightColor);
+    const QString close = highlightColor.isEmpty() ? QStringLiteral("</b>") : QStringLiteral("</font></b>");
+
+    QVariantList results;
+    for (const Hit &hit : std::as_const(hits)) {
+        if (results.size() >= limit)
+            break;
+        const QString &text = hit.note->text;
+        QVariantList snippets;
+        int lastLineStart = -1;
+        for (const auto &match : hit.matches) {
+            if (snippets.size() >= 3)
+                break;
+            const int lineStart = int(text.lastIndexOf(QLatin1Char('\n'), match.first - 1)) + 1;
+            if (lineStart == lastLineStart)
+                continue;
+            lastLineStart = lineStart;
+            int lineEnd = int(text.indexOf(QLatin1Char('\n'), match.first));
+            if (lineEnd < 0)
+                lineEnd = int(text.size());
+            // A window of the line around the match.
+            const int from = qMax(lineStart, match.first - 50);
+            const int to = qMin(lineEnd, match.first + match.second + 90);
+            QString html;
+            if (from > lineStart)
+                html += QStringLiteral("…");
+            int at = from;
+            for (const auto &other : hit.matches) {
+                if (other.first < at || other.first + other.second > to)
+                    continue;
+                html += text.mid(at, other.first - at).toHtmlEscaped();
+                html += open + text.mid(other.first, other.second).toHtmlEscaped() + close;
+                at = other.first + other.second;
+            }
+            html += text.mid(at, to - at).toHtmlEscaped();
+            if (to < lineEnd)
+                html += QStringLiteral("…");
+            snippets.append(QVariantMap{{QStringLiteral("html"), html.trimmed()},
+                                        {QStringLiteral("position"), match.first},
+                                        {QStringLiteral("length"), match.second}});
+        }
+        QVariantMap entry = noteEntry(*hit.note);
+        entry.insert(QStringLiteral("count"), int(hit.matches.size()));
+        entry.insert(QStringLiteral("snippets"), snippets);
+        results.append(entry);
+    }
+    return results;
 }

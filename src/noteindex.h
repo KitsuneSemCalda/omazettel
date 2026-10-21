@@ -28,6 +28,7 @@ public:
         QString title;  // Title or first heading, else name.
         QStringList tags;
         QList<Zettel::LinkUse> links;
+        QString text; // For search.
     };
 
     explicit NoteIndex(QObject *parent = nullptr);
@@ -59,6 +60,21 @@ public:
     Q_INVOKABLE QVariantList notesWithTag(const QString &tag) const;
     Q_INVOKABLE QStringList tagsOf(const QString &path) const;
     Q_INVOKABLE QString titleOf(const QString &path) const;
+
+    // Search across all notes. Words must all appear (in any order),
+    // "quoted phrases" as written, and #tag or tag:name keeps notes with that
+    // tag (or a tag under it). Case and accents are ignored. Returns
+    // [{path, title, folder, count, snippets: [{html, position, length}]}],
+    // title matches first, at most limit notes. Matches in the snippet html
+    // are wrapped in <b> (and coloured with highlightColor if given).
+    Q_INVOKABLE QVariantList search(const QString &query, const QString &highlightColor = QString(),
+                                    int limit = 200) const;
+
+    struct Query {
+        QStringList terms;
+        QStringList tags;
+    };
+    static Query parseQuery(const QString &query);
     // Whether path is a note the index covers (inside the folder, not in a
     // hidden folder such as .omazettel).
     Q_INVOKABLE bool covers(const QString &path) const;

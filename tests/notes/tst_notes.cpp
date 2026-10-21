@@ -336,6 +336,13 @@ private slots:
         QCOMPARE(links.at(1).heading, QStringLiteral("Goals"));
         QCOMPARE(links.at(1).label, QStringLiteral("the plan"));
         QVERIFY(Zettel::wikiLinks(QStringLiteral("[[ ]] [[]] [single]")).isEmpty());
+        // A heading in the same note.
+        const auto local = Zettel::wikiLinks(QStringLiteral("[[#Setup]]"));
+        QCOMPARE(local.size(), 1);
+        QCOMPARE(local.first().target, QString());
+        QCOMPARE(local.first().heading, QStringLiteral("Setup"));
+        QVERIFY(Zettel::parse(QStringLiteral("[[#Setup]]")).links.isEmpty());
+        QCOMPARE(Zettel::plainWikiLinks(QStringLiteral("See [[#Setup]].")), QStringLiteral("See Setup."));
     }
 
     void findsTags() {
@@ -968,6 +975,145 @@ private slots:
         QCOMPARE(dialog->property("resultState").toString(), QStringLiteral("ok"));
         QVERIFY(readFile(dir.filePath(QStringLiteral("Open.html"))).contains(QStringLiteral("Not saved yet")));
         QCOMPARE(m_windowExporter->lastProfile(), profiles.at(0).toMap().value(QStringLiteral("path")).toString());
+    }
+
+
+    // ── Search and outline ──────────────────────────────────────────────────
+
+    void parsesSearchQueries() {
+        const auto query = NoteIndex::parseQuery(QStringLiteral("alpha \"exact  phrase\" #Work tag:home/kids beta \"unclosed"));
+        QCOMPARE(query.terms, (QStringList{QStringLiteral("alpha"), QStringLiteral("exact phrase"),
+                                           QStringLiteral("beta"), QStringLiteral("unclosed")}));
+        QCOMPARE(query.tags, (QStringList{QStringLiteral("work"), QStringLiteral("home/kids")}));
+        QVERIFY(NoteIndex::parseQuery(QStringLiteral("  ")).terms.isEmpty());
+    }
+
+    void searchesAllNotes() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("Coffee.md")), "# Coffee\n\nNotes on brewing. #drink\nPour over and espresso.\n");
+        writeFile(dir.filePath(QStringLiteral("Tea.md")), "# Tea\n\nGreen tea, brewing at 80°C. Café culture <script>. #drink/hot\n");
+        writeFile(dir.filePath(QStringLiteral("Work/Plan.md")), "# Plan\n\nBrewing a plan for coffee sales. #work\n");
+        NoteIndex index;
+        index.setRoot(dir.path());
+        index.rescanNow();
+
+        const auto titles = [](const QVariantList &results) {
+            QStringList list;
+            for (const QVariant &result : results)
+                list << result.toMap().value(QStringLiteral("title")).toString();
+            return list;
+        };
+        // All words must appear; a title match ranks first.
+        QCOMPARE(titles(index.search(QStringLiteral("coffee brewing"))),
+                 (QStringList{QStringLiteral("Coffee"), QStringLiteral("Plan")}));
+        QCOMPARE(titles(index.search(QStringLiteral("\"pour over\""))), QStringList{QStringLiteral("Coffee")});
+        QCOMPARE(titles(index.search(QStringLiteral("\"over pour\""))), QStringList());
+        // Accents and case are ignored.
+        QCOMPARE(titles(index.search(QStringLiteral("CAFE"))), QStringList{QStringLiteral("Tea")});
+        // Tags filter, including tags under them.
+        QCOMPARE(titles(index.search(QStringLiteral("#drink"))), (QStringList{QStringLiteral("Coffee"), QStringLiteral("Tea")}));
+        QCOMPARE(titles(index.search(QStringLiteral("brewing tag:work"))), QStringList{QStringLiteral("Plan")});
+        QCOMPARE(index.search(QStringLiteral("")).size(), 0);
+
+        // Snippets: the match in bold, the rest escaped, with its position.
+        const QVariantMap tea = index.search(QStringLiteral("café"), QStringLiteral("#ff0000")).first().toMap();
+        const QVariantMap snippet = tea.value(QStringLiteral("snippets")).toList().first().toMap();
+        const QString html = snippet.value(QStringLiteral("html")).toString();
+        QVERIFY2(html.contains(QStringLiteral("<b><font color=\"#ff0000\">Café</font></b>")), qPrintable(html));
+        QVERIFY(html.contains(QStringLiteral("&lt;script&gt;")));
+        const QString teaText = readFile(dir.filePath(QStringLiteral("Tea.md")));
+        QCOMPARE(teaText.mid(snippet.value(QStringLiteral("position")).toInt(),
+                             snippet.value(QStringLiteral("length")).toInt()), QStringLiteral("Café"));
+    }
+
+    void outlinesNotes() {
+        const auto headings = Zettel::outline(QStringLiteral(
+            "---\ntitle: x\n# not a heading\n---\n# One\ntext\n## Two ##\n```\n# code\n```\n#nospace\n   ### Three\n####### Seven\n"));
+        QCOMPARE(headings.size(), 3);
+        QCOMPARE(headings.at(0).text, QStringLiteral("One"));
+        QCOMPARE(headings.at(0).level, 1);
+        QCOMPARE(headings.at(0).offset, 33);
+        QCOMPARE(headings.at(1).text, QStringLiteral("Two"));
+        QCOMPARE(headings.at(1).level, 2);
+        QCOMPARE(headings.at(2).text, QStringLiteral("Three"));
+        QCOMPARE(headings.at(2).level, 3);
+    }
+
+    void searchTabOpensResults() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("Start.md")), "# Start\n");
+        writeFile(dir.filePath(QStringLiteral("Deep/Found.md")), "# Found\n\nSome text\nthe needle is here\n");
+        Backend backend;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        vault.setSidebarVisible(true);
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+        QMetaObject::invokeMethod(window.get(), "openNote",
+                                  Q_ARG(QVariant, QUrl::fromLocalFile(dir.filePath(QStringLiteral("Start.md")))));
+
+        QMetaObject::invokeMethod(window.get(), "showNotesSearch");
+        auto *sidebar = window->findChild<QObject *>(QStringLiteral("sidebar"));
+        QCOMPARE(sidebar->property("mode").toString(), QStringLiteral("search"));
+        auto *field = window->findChild<QObject *>(QStringLiteral("notesSearchField"));
+        auto *view = window->findChild<QObject *>(QStringLiteral("searchView"));
+        field->setProperty("text", QStringLiteral("needle"));
+        QTRY_COMPARE(view->property("results").toList().size(), 1);
+
+        const QVariantMap result = view->property("results").toList().first().toMap();
+        const QVariantMap snippet = result.value(QStringLiteral("snippets")).toList().first().toMap();
+        QMetaObject::invokeMethod(window.get(), "openSearchResult",
+                                  Q_ARG(QVariant, result.value(QStringLiteral("path"))),
+                                  Q_ARG(QVariant, snippet.value(QStringLiteral("position"))),
+                                  Q_ARG(QVariant, snippet.value(QStringLiteral("length"))));
+        QCOMPARE(backend.fileUrl(), QUrl::fromLocalFile(dir.filePath(QStringLiteral("Deep/Found.md"))));
+        auto *editor = window->findChild<QObject *>(QStringLiteral("sourceEditor"));
+        QCOMPARE(editor->property("selectedText").toString(), QStringLiteral("needle"));
+    }
+
+    void outlineAndHeadingLinks() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("Guide.md")), "# Guide\n\nIntro\n\n## Setup\n\nSteps\n\n## Usage\n\nMore\n");
+        writeFile(dir.filePath(QStringLiteral("Links.md")), "See [[Guide#usage]] and [[#Local]].\n\n## Local\n");
+        Backend backend;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        vault.setPanelVisible(true);
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+        QMetaObject::invokeMethod(window.get(), "openNote",
+                                  Q_ARG(QVariant, QUrl::fromLocalFile(dir.filePath(QStringLiteral("Guide.md")))));
+        const QVariantList headings = window->property("outlineHeadings").toList();
+        QCOMPARE(headings.size(), 3);
+        QCOMPARE(headings.at(1).toMap().value(QStringLiteral("text")).toString(), QStringLiteral("Setup"));
+        QCOMPARE(backend.headingPosition(QStringLiteral("USAGE")), 33);
+
+        // The panel marks the section the caret is in.
+        auto *panel = window->findChild<QObject *>(QStringLiteral("notePanel"));
+        auto *editor = window->findChild<QObject *>(QStringLiteral("sourceEditor"));
+        editor->setProperty("cursorPosition", 25);
+        QCOMPARE(panel->property("currentHeading").toInt(), 1);
+
+        // Edits update the outline shortly after.
+        editor->setProperty("text", QStringLiteral("# Guide\n\n## Only\n"));
+        QTRY_COMPARE(window->property("outlineHeadings").toList().size(), 2);
+        QVERIFY(backend.flushAutoSave());
+        writeFile(dir.filePath(QStringLiteral("Guide.md")), "# Guide\n\nIntro\n\n## Setup\n\nSteps\n\n## Usage\n\nMore\n");
+
+        // [[Note#Heading]] opens the note at the heading; [[#Heading]] jumps
+        // within the note.
+        QMetaObject::invokeMethod(window.get(), "openNote",
+                                  Q_ARG(QVariant, QUrl::fromLocalFile(dir.filePath(QStringLiteral("Links.md")))));
+        const int inLocal = QStringLiteral("See [[Guide#usage]] and [[#Lo").size();
+        QVariant handled;
+        QMetaObject::invokeMethod(window.get(), "followLinkAt", Q_RETURN_ARG(QVariant, handled), Q_ARG(QVariant, inLocal));
+        QCOMPARE(backend.fileUrl(), QUrl::fromLocalFile(dir.filePath(QStringLiteral("Links.md"))));
+        QCOMPARE(editor->property("cursorPosition").toInt(), QStringLiteral("See [[Guide#usage]] and [[#Local]].\n\n").size());
+
+        const int inGuide = QStringLiteral("See [[Gui").size();
+        QMetaObject::invokeMethod(window.get(), "followLinkAt", Q_RETURN_ARG(QVariant, handled), Q_ARG(QVariant, inGuide));
+        QCOMPARE(backend.fileUrl(), QUrl::fromLocalFile(dir.filePath(QStringLiteral("Guide.md"))));
+        QCOMPARE(editor->property("cursorPosition").toInt(), 33);
     }
 
     // ── The window ──────────────────────────────────────────────────────────

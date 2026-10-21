@@ -49,6 +49,15 @@ QStringList frontMatterTags(const QString &frontMatter);
 // target (and heading), for export, where links between notes mean nothing.
 QString plainWikiLinks(const QString &text);
 
+struct Heading {
+    int level = 1;
+    QString text;
+    int offset = 0; // Of the line, in the text.
+};
+
+// The # headings of a note, outside front matter and fenced code.
+QList<Heading> outline(const QString &text);
+
 // The inline code spans of a line, as [start, end) pairs.
 QList<QPair<int, int>> codeRanges(const QString &line);
 

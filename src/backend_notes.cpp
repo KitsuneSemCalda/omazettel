@@ -119,3 +119,40 @@ QVariantMap Backend::wikiQueryAt(int position) const {
             {QStringLiteral("start"), block.position() + int(match.capturedStart(1))},
             {QStringLiteral("closed"), after.startsWith(QStringLiteral("]]"))}};
 }
+
+QString Backend::wikiHeadingAt(int position) const {
+    if (!m_document)
+        return QString();
+    const QTextBlock block = m_document->findBlock(position);
+    if (!block.isValid())
+        return QString();
+    const int column = position - block.position();
+    for (const Zettel::WikiLink &link : Zettel::wikiLinks(block.text())) {
+        if (column >= link.start && column <= link.start + link.length)
+            return link.heading;
+    }
+    return QString();
+}
+
+QVariantList Backend::outline() const {
+    QVariantList result;
+    if (!m_document)
+        return result;
+    for (const Zettel::Heading &heading : Zettel::outline(m_document->toPlainText())) {
+        result.append(QVariantMap{{QStringLiteral("level"), heading.level},
+                                  {QStringLiteral("text"), heading.text},
+                                  {QStringLiteral("position"), heading.offset}});
+    }
+    return result;
+}
+
+int Backend::headingPosition(const QString &text) const {
+    if (!m_document || text.trimmed().isEmpty())
+        return -1;
+    const QString wanted = text.trimmed();
+    for (const Zettel::Heading &heading : Zettel::outline(m_document->toPlainText())) {
+        if (heading.text.compare(wanted, Qt::CaseInsensitive) == 0)
+            return heading.offset;
+    }
+    return -1;
+}

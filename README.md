@@ -8,8 +8,9 @@ by David Heinemeier Hansson. It is not made or endorsed by Omacom or the
 Omarchy project.
 
 > **Status: early development (0.1.0).** Working: the notes folder sidebar,
-> `[[wiki links]]`, backlinks, tags, note templates and pandoc export with
-> custom templates. Still to come: search across notes. See `docs/PLAN.md`.
+> `[[wiki links]]`, backlinks, tags, note templates, pandoc export with
+> custom templates, search across notes and an outline. Still to come:
+> polish and packaging. See `docs/PLAN.md`.
 
 ## Notes folder
 
@@ -57,6 +58,19 @@ An optional first line sets how the note is made, and is left out of it:
 inside the notes folder (default: the selected folder) and `existing="open"`
 opens a note of that name instead of making a second one (the Daily template
 uses it). A template that doesn't use `{{title}}` doesn't ask for one.
+
+## Search and outline
+
+- Ctrl+Shift+F opens the sidebar's Search tab (with the selected text, if
+  any). Words find notes containing all of them, `"quoted phrases"` match as
+  written, and `#tag` or `tag:name` keeps notes with that tag or one under it.
+  Case and accents don't matter. Notes with a match in the title come first;
+  each shows up to three matching lines. Click one to open the note with the
+  match selected; Enter in the field opens the first.
+- The right panel's Outline lists the open note's headings as you type and
+  marks the section the caret is in. Click one to go there.
+- `[[Note#Heading]]` opens the note at that heading, and `[[#Heading]]` jumps
+  to a heading in the same note.
 
 ## Export
 
@@ -134,6 +148,7 @@ There is no package release yet. Build from source as described in
 - `Ctrl+Shift+N` opens a new OmaZettel window.
 - `Ctrl+Shift+D` opens today's daily note.
 - `Ctrl+Shift+E` exports the note with pandoc.
+- `Ctrl+Shift+F` searches all notes.
 - `Ctrl+\` shows or hides the notes sidebar.
 - `Ctrl+Z`, `Ctrl+Shift+Z`, and `Ctrl+Y` handle undo and redo.
 - `Super+F` toggles fullscreen. Qt maps this key as `Meta+F`.

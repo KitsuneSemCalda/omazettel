@@ -69,7 +69,7 @@ QList<WikiLink> wikiLinks(const QString &line) {
     if (!line.contains(QLatin1String("[[")))
         return links;
     static const QRegularExpression wikiRe(
-        QStringLiteral("\\[\\[([^\\[\\]\\n|#]+)(?:#([^\\[\\]\\n|]*))?(?:\\|([^\\[\\]\\n]*))?\\]\\]"));
+        QStringLiteral("\\[\\[([^\\[\\]\\n|#]*)(?:#([^\\[\\]\\n|]*))?(?:\\|([^\\[\\]\\n]*))?\\]\\]"));
     const auto code = codeRanges(line);
     auto it = wikiRe.globalMatch(line);
     while (it.hasNext()) {
@@ -78,7 +78,8 @@ QList<WikiLink> wikiLinks(const QString &line) {
             continue;
         const QString rawTarget = match.captured(1);
         const QString target = rawTarget.trimmed();
-        if (target.isEmpty())
+        // [[#Heading]] is a link within the same note; [[]] is nothing.
+        if (target.isEmpty() && match.captured(2).trimmed().isEmpty())
             continue;
         WikiLink link;
         link.start = match.capturedStart();
@@ -221,8 +222,10 @@ ParsedNote parse(const QString &text) {
             if (heading.hasMatch())
                 note.title = heading.captured(1);
         }
-        for (const WikiLink &link : wikiLinks(line))
-            note.links.append({link.target, shortened(line)});
+        for (const WikiLink &link : wikiLinks(line)) {
+            if (!link.target.isEmpty())
+                note.links.append({link.target, shortened(line)});
+        }
         for (const TagSpan &tag : tags(line))
             addTag(tag.tag);
     }
@@ -254,12 +257,53 @@ QString plainWikiLinks(const QString &text) {
             if (shown.isEmpty()) {
                 shown = link->target.section(QLatin1Char('/'), -1);
                 if (!link->heading.isEmpty())
-                    shown += QStringLiteral(" › ") + link->heading;
+                    shown += (shown.isEmpty() ? QString() : QStringLiteral(" › ")) + link->heading;
             }
             line.replace(link->start, link->length, shown);
         }
     }
     return lines.join(QLatin1Char('\n'));
+}
+
+QList<Heading> outline(const QString &text) {
+    QList<Heading> headings;
+    static const QRegularExpression headingRe(QStringLiteral("^ {0,3}(#{1,6})[ \\t]+(.*?)[ \\t]*#*[ \\t]*$"));
+    int offset = 0;
+    int lineNumber = 0;
+    bool inFrontMatter = false;
+    QChar fenceMarker;
+    int fence = 0;
+    const QStringList lines = text.split(QLatin1Char('\n'));
+    for (const QString &line : lines) {
+        const int lineOffset = offset;
+        offset += int(line.size()) + 1;
+        const QString trimmed = line.trimmed();
+        if (lineNumber++ == 0 && trimmed == QLatin1String("---")) {
+            inFrontMatter = true;
+            continue;
+        }
+        if (inFrontMatter) {
+            if (trimmed == QLatin1String("---") || trimmed == QLatin1String("..."))
+                inFrontMatter = false;
+            continue;
+        }
+        QChar marker;
+        const int length = fenceLength(line, &marker);
+        if (fence > 0) {
+            if (length >= fence && marker == fenceMarker && trimmed.size() == length)
+                fence = 0;
+            continue;
+        }
+        if (length > 0) {
+            fence = length;
+            fenceMarker = marker;
+            continue;
+        }
+        const QRegularExpressionMatch match = headingRe.match(line);
+        if (match.hasMatch() && !match.captured(2).isEmpty())
+            headings.append({int(match.capturedLength(1)), match.captured(2), lineOffset});
+    }
+    return headings;
 }
 
 }

@@ -14,6 +14,18 @@ Rectangle {
     property color mutedColor: "#909191"
     property color accentColor: "#428bca"
     property string currentPath: ""
+    // The open note's headings ([{level, text, position}]) and the caret,
+    // to mark the section it is in.
+    property var headings: []
+    property int cursorPosition: 0
+    readonly property int currentHeading: {
+        var found = -1;
+        for (var i = 0; i < headings.length; ++i) {
+            if (headings[i].position <= cursorPosition)
+                found = i;
+        }
+        return found;
+    }
 
     readonly property color panelColor: darkMode ? Qt.lighter(pageColor, 1.25) : Qt.darker(pageColor, 1.04)
     readonly property color hairlineColor: Qt.rgba(mutedColor.r, mutedColor.g, mutedColor.b, 0.25)
@@ -28,6 +40,7 @@ Rectangle {
 
     signal openRequested(url fileUrl)
     signal tagRequested(string tag)
+    signal headingRequested(int position)
 
     function scaled(pixels) { return Math.max(1, Math.round(pixels * textScale)); }
 
@@ -54,6 +67,71 @@ Rectangle {
             y: root.scaled(12)
             width: parent.width - root.scaled(28)
             spacing: root.scaled(10)
+
+            // ── Outline ─────────────────────────────────────────────────────
+            Label {
+                text: "Outline"
+                color: root.textColor
+                font.family: "IBM Plex Mono"
+                font.pixelSize: root.scaled(13)
+                font.bold: true
+            }
+
+            Label {
+                visible: root.headings.length === 0
+                width: parent.width
+                wrapMode: Text.Wrap
+                text: "No headings. Lines starting with # appear here."
+                color: root.mutedColor
+                font.family: "IBM Plex Mono"
+                font.pixelSize: root.scaled(11)
+            }
+
+            Column {
+                objectName: "outline"
+                width: parent.width
+                visible: root.headings.length > 0
+                Repeater {
+                    model: root.headings
+                    delegate: Rectangle {
+                        required property var modelData
+                        required property int index
+                        readonly property int minLevel: {
+                            var level = 6;
+                            for (var i = 0; i < root.headings.length; ++i)
+                                level = Math.min(level, root.headings[i].level);
+                            return level;
+                        }
+                        width: parent.width
+                        height: root.scaled(24)
+                        radius: root.scaled(4)
+                        color: index === root.currentHeading
+                               ? Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.14)
+                               : (headingMouse.containsMouse ? root.hoverFill : "transparent")
+                        Label {
+                            x: root.scaled(6) + (modelData.level - parent.minLevel) * root.scaled(12)
+                            width: parent.width - x - root.scaled(6)
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: modelData.text
+                            textFormat: Text.PlainText
+                            elide: Text.ElideRight
+                            color: index === root.currentHeading ? root.accentColor : root.textColor
+                            font.family: "IBM Plex Mono"
+                            font.pixelSize: root.scaled(modelData.level <= parent.minLevel ? 12 : 11)
+                            font.bold: modelData.level <= parent.minLevel
+                        }
+                        MouseArea {
+                            id: headingMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.headingRequested(parent.modelData.position)
+                        }
+                    }
+                }
+            }
+
+            Item { width: 1; height: root.scaled(6) }
 
             // ── Tags ────────────────────────────────────────────────────────
             Label {

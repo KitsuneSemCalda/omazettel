@@ -113,6 +113,12 @@ public:
     // the caret is not inside an unfinished [[.
     Q_INVOKABLE QVariantMap wikiQueryAt(int position) const;
     Q_INVOKABLE void showStatus(const QString &status) { setStatus(status); }
+    // The #heading of the [[link]] at a position, or "".
+    Q_INVOKABLE QString wikiHeadingAt(int position) const;
+    // The open note's headings: [{level, text, position}].
+    Q_INVOKABLE QVariantList outline() const;
+    // Where the first heading reading text starts (case does not matter), or -1.
+    Q_INVOKABLE int headingPosition(const QString &text) const;
 
 signals:
     void fileUrlChanged();

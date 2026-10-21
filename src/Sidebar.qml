@@ -53,6 +53,18 @@ Rectangle {
         selectedTag = tag;
     }
 
+    // Search across notes: shows the tab and puts the caret in its field,
+    // with query (if given) filled in.
+    function showSearch(query) {
+        mode = "search";
+        if (query !== undefined && query.length > 0)
+            searchField.text = query;
+        searchField.forceActiveFocus();
+        searchField.selectAll();
+    }
+
+    signal searchResultRequested(string path, int position, int length)
+
     onCurrentPathChanged: selectedPath = currentPath
 
     function scaled(pixels) { return Math.max(1, Math.round(pixels * textScale)); }
@@ -169,7 +181,7 @@ Rectangle {
         spacing: root.scaled(16)
 
         Repeater {
-            model: [{ id: "files", label: "Files" }, { id: "tags", label: "Tags" }]
+            model: [{ id: "files", label: "Files" }, { id: "tags", label: "Tags" }, { id: "search", label: "Search" }]
             delegate: Label {
                 required property var modelData
                 text: modelData.label
@@ -189,7 +201,220 @@ Rectangle {
                     anchors.fill: parent
                     anchors.margins: -root.scaled(4)
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: root.mode = parent.modelData.id
+                    onClicked: {
+                        if (parent.modelData.id === "search")
+                            root.showSearch();
+                        else
+                            root.mode = parent.modelData.id;
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Search ──────────────────────────────────────────────────────────────
+    Item {
+        id: searchView
+        objectName: "searchView"
+        visible: vault.isOpen && root.mode === "search"
+        anchors.top: tabs.bottom
+        anchors.bottom: errorLabel.visible ? errorLabel.top : parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.topMargin: root.scaled(12)
+
+        // Re-run when the query settles or the notes change.
+        property string query: ""
+        readonly property var results: query.trim().length > 0 && noteIndex.revision >= 0
+                                       ? noteIndex.search(query, root.accentColor) : []
+
+        Timer {
+            id: searchDelay
+            interval: 200
+            onTriggered: searchView.query = searchField.text
+        }
+
+        Rectangle {
+            id: searchBox
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: root.scaled(12)
+            anchors.rightMargin: root.scaled(12)
+            height: root.scaled(30)
+            radius: root.scaled(4)
+            color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.06)
+            border.color: searchField.activeFocus ? root.accentColor : "transparent"
+
+            TextInput {
+                id: searchField
+                objectName: "notesSearchField"
+                anchors.fill: parent
+                anchors.leftMargin: root.scaled(8)
+                anchors.rightMargin: root.scaled(8)
+                verticalAlignment: TextInput.AlignVCenter
+                clip: true
+                selectByMouse: true
+                color: root.textColor
+                selectionColor: root.accentColor
+                font.family: "IBM Plex Mono"
+                font.pixelSize: root.scaled(12)
+                onTextChanged: searchDelay.restart()
+                Keys.onReturnPressed: {
+                    searchDelay.stop();
+                    searchView.query = text;
+                    if (searchView.results.length > 0) {
+                        var first = searchView.results[0];
+                        var snippet = first.snippets.length > 0 ? first.snippets[0] : { position: -1, length: 0 };
+                        root.searchResultRequested(first.path, snippet.position, snippet.length);
+                    }
+                }
+                Keys.onEscapePressed: text = ""
+            }
+            Label {
+                anchors.verticalCenter: parent.verticalCenter
+                x: root.scaled(8)
+                visible: searchField.text.length === 0
+                text: "Search notes…"
+                color: root.mutedColor
+                font.family: "IBM Plex Mono"
+                font.pixelSize: root.scaled(12)
+            }
+        }
+
+        Label {
+            id: searchSummary
+            anchors.top: searchBox.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.topMargin: root.scaled(8)
+            leftPadding: root.scaled(14)
+            rightPadding: root.scaled(14)
+            wrapMode: Text.Wrap
+            text: searchView.query.trim().length === 0
+                  ? "Words find notes with all of them; use \"quotes\" for a phrase and #tag to keep one tag."
+                  : (searchView.results.length === 0 ? "No notes match."
+                     : searchView.results.length + (searchView.results.length === 1 ? " note" : " notes"))
+            color: root.mutedColor
+            font.family: "IBM Plex Mono"
+            font.pixelSize: root.scaled(11)
+        }
+
+        ListView {
+            id: resultList
+            objectName: "searchResults"
+            anchors.top: searchSummary.bottom
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.topMargin: root.scaled(8)
+            anchors.rightMargin: 1
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+            model: searchView.results
+            spacing: root.scaled(6)
+
+            delegate: Column {
+                id: resultRow
+                required property var modelData
+                width: resultList.width
+
+                Rectangle {
+                    width: parent.width
+                    height: root.scaled(26)
+                    color: "transparent"
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.leftMargin: root.scaled(6)
+                        anchors.rightMargin: root.scaled(6)
+                        radius: root.scaled(4)
+                        color: resultRow.modelData.path === root.currentPath ? root.currentFill
+                               : (titleMouse.containsMouse ? root.hoverFill : "transparent")
+                    }
+                    Label {
+                        x: root.scaled(14)
+                        width: parent.width - root.scaled(28) - countLabel.width
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: resultRow.modelData.title
+                        elide: Text.ElideRight
+                        color: root.accentColor
+                        font.family: "IBM Plex Mono"
+                        font.pixelSize: root.scaled(12)
+                        font.bold: true
+                    }
+                    Label {
+                        id: countLabel
+                        anchors.right: parent.right
+                        anchors.rightMargin: root.scaled(14)
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: resultRow.modelData.count > 0 ? resultRow.modelData.count : ""
+                        color: root.mutedColor
+                        font.family: "IBM Plex Mono"
+                        font.pixelSize: root.scaled(11)
+                    }
+                    MouseArea {
+                        id: titleMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            var snippets = resultRow.modelData.snippets;
+                            root.searchResultRequested(resultRow.modelData.path,
+                                                       snippets.length > 0 ? snippets[0].position : -1,
+                                                       snippets.length > 0 ? snippets[0].length : 0);
+                        }
+                    }
+                }
+
+                Label {
+                    visible: resultRow.modelData.folder.length > 0
+                    x: root.scaled(14)
+                    width: parent.width - root.scaled(28)
+                    text: resultRow.modelData.folder
+                    elide: Text.ElideMiddle
+                    color: root.mutedColor
+                    font.family: "IBM Plex Mono"
+                    font.pixelSize: root.scaled(10)
+                }
+
+                Repeater {
+                    model: resultRow.modelData.snippets
+                    delegate: Rectangle {
+                        required property var modelData
+                        width: resultRow.width
+                        height: snippetLabel.implicitHeight + root.scaled(8)
+                        color: "transparent"
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.leftMargin: root.scaled(6)
+                            anchors.rightMargin: root.scaled(6)
+                            radius: root.scaled(4)
+                            color: snippetMouse.containsMouse ? root.hoverFill : "transparent"
+                        }
+                        Label {
+                            id: snippetLabel
+                            x: root.scaled(14)
+                            y: root.scaled(4)
+                            width: parent.width - root.scaled(28)
+                            text: modelData.html
+                            textFormat: Text.StyledText
+                            wrapMode: Text.Wrap
+                            maximumLineCount: 3
+                            elide: Text.ElideRight
+                            color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.75)
+                            font.family: "IBM Plex Mono"
+                            font.pixelSize: root.scaled(11)
+                        }
+                        MouseArea {
+                            id: snippetMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.searchResultRequested(resultRow.modelData.path,
+                                                                  parent.modelData.position, parent.modelData.length)
+                        }
+                    }
                 }
             }
         }
