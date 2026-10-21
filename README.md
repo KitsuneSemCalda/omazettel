@@ -407,10 +407,10 @@ OmaZettel is licensed under the GNU General Public License, version 3 or later
 
 It started from [Omawrite](https://github.com/omacom/omawrite) by David
 Heinemeier Hansson, under the MIT license
-([`LICENSES/MIT-omawrite.txt`](LICENSES/MIT-omawrite.txt)). Ideas come from
-[Zettlr](https://www.zettlr.com), [Obsidian](https://obsidian.md),
-[Joplin](https://joplinapp.org) and [Alexandrie](https://github.com/Smaug6739/Alexandrie),
-and the Oma palette from [OmaShow](https://github.com/28allday/omashow). The bundled
+([`LICENSES/MIT-omawrite.txt`](LICENSES/MIT-omawrite.txt)). Feature ideas
+inspired by [Zettlr](https://www.zettlr.com), [Obsidian](https://obsidian.md)
+and [Joplin](https://joplinapp.org). The Oma palette comes from
+[OmaShow](https://github.com/28allday/omashow). The bundled
 IBM Plex Mono font is under the SIL Open Font License 1.1
 ([`fonts/OFL.txt`](fonts/OFL.txt)). See
 [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) for details.
