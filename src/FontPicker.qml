@@ -14,8 +14,8 @@ Popup {
     property color mutedColor: "#909191"
     property color highlightColor: "#428bca"
     property real maximumHeight: 440
-    // OmaZettel: the Oma palette's surfaces when it is on.
-    readonly property bool omaPalette: typeof backend !== "undefined" && backend !== null && backend.omaPalette
+    // OmaZettel: the theme's named colours (themed/omazettel.toml.tpl).
+    readonly property var themeTokens: typeof backend !== "undefined" && backend !== null ? backend.themeTokens : ({})
 
     signal fontChosen(string family)
 
@@ -58,7 +58,7 @@ Popup {
 
     background: Rectangle {
         radius: 9
-        color: picker.omaPalette ? "#171E2A" : picker.darkMode ? "#22221f" : "#fffef2"
+        color: picker.themeTokens["ui.raised"] || picker.darkMode ? "#22221f" : "#fffef2"
     }
 
     contentItem: Column {

@@ -173,6 +173,8 @@ void MarkdownHighlighter::rebuildFormats() {
     m_currentSearchFormat = QTextCharFormat();
     m_currentSearchFormat.setBackground(m_darkMode ? QColor(QStringLiteral("#b36b20"))
                                                    : QColor(QStringLiteral("#ffad42")));
+    // OmaZettel: the theme's colours by name.
+    applyZettelColors();
 }
 
 void MarkdownHighlighter::highlightBlock(const QString &text) {

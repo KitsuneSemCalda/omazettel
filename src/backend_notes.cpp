@@ -2,6 +2,8 @@
 // upstream Omawrite, so merges stay simple.
 
 #include "backend.h"
+#include "apptheme.h"
+#include "markdownhighlighter.h"
 #include "zettel.h"
 
 #include <QTextBlock>
@@ -159,23 +161,81 @@ int Backend::headingPosition(const QString &text) const {
     return -1;
 }
 
-// The shared Oma design palette (as in OmaShow's Theme.qml): a fixed dark
-// surround so the writing reads the same whatever the desktop does, with the
-// accent left to the Omarchy theme.
-void Backend::applyOmaPalette() {
-    if (!m_omaPalette)
+// OmaZettel's colours: the theme's omazettel.toml, the user's template or
+// the built-in one (AppTheme::load), or the fixed Oma palette with the
+// theme's accent. Runs at the end of loadOmarchyTheme().
+void Backend::applyAppTheme() {
+    AppTheme::Result theme = m_omaPalette ? AppTheme::omaPalette(m_themeAccent) : AppTheme::load();
+    if (!m_omaPalette) {
+        // What the theme file leaves out comes from what Omawrite already read.
+        const auto seed = [&theme](const QString &name, const QString &value) {
+            if (!theme.colors.contains(name) && QColor(value).isValid())
+                theme.colors.insert(name, QColor(value).name());
+        };
+        seed(QStringLiteral("editor.background"), m_themeBackground);
+        seed(QStringLiteral("editor.foreground"), m_themeForeground);
+        seed(QStringLiteral("ui.accent"), m_themeAccent);
+        seed(QStringLiteral("editor.selection"), m_themeSelection);
+        seed(QStringLiteral("editor.selection_foreground"), m_themeSelectionForeground);
+        seed(QStringLiteral("editor.code_background"), m_themeCodeBackground);
+        const QColor page(theme.colors.value(QStringLiteral("editor.background")));
+        m_darkMode = !page.isValid() || (0.299 * page.redF() + 0.587 * page.greenF() + 0.114 * page.blueF()) < 0.5;
+        AppTheme::complete(theme.colors, m_darkMode);
+    } else {
+        m_darkMode = true;
+    }
+    m_themeTokens = theme.colors;
+    m_themeSource = theme.source;
+    m_themeBackground = theme.colors.value(QStringLiteral("editor.background"));
+    m_themeForeground = theme.colors.value(QStringLiteral("editor.foreground"));
+    m_themeAccent = theme.colors.value(QStringLiteral("ui.accent"));
+    m_themeSelection = theme.colors.value(QStringLiteral("editor.selection"));
+    m_themeSelectionForeground = theme.colors.value(QStringLiteral("editor.selection_foreground"));
+    m_themeCodeBackground = theme.colors.value(QStringLiteral("editor.code_background"));
+    applyHighlighterColors();
+}
+
+void Backend::applyHighlighterColors() {
+    if (!m_highlighter)
         return;
-    m_darkMode = true;
-    m_themeBackground = QStringLiteral("#0B0E13");
-    m_themeForeground = QStringLiteral("#E7EDF7");
-    const QColor accent(m_themeAccent);
-    const QColor page(m_themeBackground);
-    // An opaque selection: the accent two fifths of the way over the page.
-    const QColor selection = QColor::fromRgbF(page.redF() + (accent.redF() - page.redF()) * 0.4,
-                                              page.greenF() + (accent.greenF() - page.greenF()) * 0.4,
-                                              page.blueF() + (accent.blueF() - page.blueF()) * 0.4);
-    m_themeSelection = selection.name();
-    m_themeSelectionForeground = m_themeForeground;
+    QHash<QString, QColor> colors;
+    for (auto it = m_themeTokens.cbegin(); it != m_themeTokens.cend(); ++it) {
+        if (it.key().startsWith(QLatin1String("editor.")))
+            colors.insert(it.key().mid(7), QColor(it.value()));
+    }
+    m_highlighter->setZettelColors(colors);
+}
+
+QVariantMap Backend::themeTokens() const {
+    QVariantMap map;
+    for (auto it = m_themeTokens.cbegin(); it != m_themeTokens.cend(); ++it)
+        map.insert(it.key(), it.value());
+    return map;
+}
+
+// Also watch the user's template, so editing it recolours the app at once.
+void Backend::watchAppTheme() {
+    const QString user = AppTheme::userTemplatePath();
+    const QString folder = QFileInfo(user).absolutePath();
+    if (QFileInfo(folder).isDir() && !m_themeWatcher.directories().contains(folder))
+        m_themeWatcher.addPath(folder);
+    if (QFileInfo(user).isFile() && !m_themeWatcher.files().contains(user))
+        m_themeWatcher.addPath(user);
+    const QString themed = AppTheme::themeDir() + QStringLiteral("/omazettel.toml");
+    if (QFileInfo(themed).isFile() && !m_themeWatcher.files().contains(themed))
+        m_themeWatcher.addPath(themed);
+}
+
+QString Backend::customizeThemeTemplate() {
+    const QString user = AppTheme::userTemplatePath();
+    if (!QFileInfo(user).isFile()) {
+        QDir().mkpath(QFileInfo(user).absolutePath());
+        QFile file(user);
+        if (file.open(QIODevice::WriteOnly | QIODevice::Text))
+            file.write(AppTheme::builtinTemplate().toUtf8());
+    }
+    watchAppTheme();
+    return user;
 }
 
 void Backend::setOmaPalette(bool enabled) {

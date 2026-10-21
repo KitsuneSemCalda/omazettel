@@ -21,6 +21,7 @@ Dialog {
     signal syncDialogRequested()
     signal citationsRequested()
     signal templatesRequested()
+    signal editFileRequested(string path)
 
     function scaled(pixels) { return Math.max(1, Math.round(pixels * textScale)); }
 
@@ -119,10 +120,27 @@ Dialog {
             // ── Look ────────────────────────────────────────────────────────
             Heading { text: "Look"; Layout.topMargin: root.scaled(4) }
             Check {
+                objectName: "themeColorsCheck"
+                checked: !backend.omaPalette
+                text: "Omarchy theme: colors follow the current theme, like Neovim and VS Code"
+                onToggled: backend.omaPalette = false
+            }
+            Check {
                 objectName: "omaPaletteCheck"
                 checked: backend.omaPalette
-                text: "Oma color palette (as in OmaShow); off takes every color from the Omarchy theme"
-                onToggled: backend.omaPalette = !backend.omaPalette
+                text: "Oma palette: the fixed dark look of OmaShow, with the theme's accent"
+                onToggled: backend.omaPalette = true
+            }
+            Small {
+                visible: !backend.omaPalette
+                text: backend.themeSource === "theme file" ? "Colors come from the theme's own omazettel.toml."
+                      : backend.themeSource === "your template" ? "Colors come from your template, ~/.config/omarchy/themed/omazettel.toml.tpl."
+                      : "Colors come from OmaZettel's built-in template, filled with the theme's colors."
+            }
+            Action {
+                visible: !backend.omaPalette
+                text: "Customize theme colors…"
+                onClicked: root.editFileRequested(backend.customizeThemeTemplate())
             }
             Small { text: "The writing font is in the footer (the A button); text size follows Ctrl+= and Ctrl+-." }
 

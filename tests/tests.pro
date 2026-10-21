@@ -7,6 +7,7 @@ INCLUDEPATH += ../src
 SOURCES += \
     tst_omazettel.cpp \
     ../src/backend.cpp \
+    ../src/apptheme.cpp \
     ../src/backend_notes.cpp \
     ../src/cli.cpp \
     ../src/markdownhighlighter.cpp \
@@ -20,6 +21,7 @@ SOURCES += \
     ../src/zettel.cpp \
     ../src/vault.cpp
 HEADERS += \
+    ../src/apptheme.h \
     ../src/backend.h \
     ../src/cli.h \
     ../src/markdownhighlighter.h \

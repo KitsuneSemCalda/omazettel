@@ -11,6 +11,7 @@
 #include <QSignalSpy>
 #include <QStandardPaths>
 
+#include "apptheme.h"
 #include "backend.h"
 #include "citations.h"
 #include "exporter.h"
@@ -1699,6 +1700,103 @@ private slots:
         vault.setAutoCreateLinks(true);
         Vault again;
         QVERIFY(again.autoCreateLinks());
+    }
+
+
+    // ── Theme colours ───────────────────────────────────────────────────────
+
+    void rendersThemeTemplates() {
+        const QHash<QString, QString> colors{{QStringLiteral("background"), QStringLiteral("#000000")},
+                                             {QStringLiteral("foreground"), QStringLiteral("#ffffff")},
+                                             {QStringLiteral("selection_background"), QStringLiteral("#123456")}};
+        QCOMPARE(AppTheme::render(QStringLiteral("a = \"{{ background }}\"\nb = \"{{ foreground_strip }}\"\n"
+                                                 "c = \"{{ mix background foreground 50% }}\"\nd = \"{{ selection_background }}\"\n"
+                                                 "e = \"{{ nosuch }}\"\nf = \"{{ background_rgb }}\""),
+                                  colors),
+                 QStringLiteral("a = \"#000000\"\nb = \"ffffff\"\nc = \"#808080\"\nd = \"#123456\"\n"
+                                "e = \"{{ nosuch }}\"\nf = \"0,0,0\""));
+        const auto parsed = AppTheme::parse(QStringLiteral(
+            "# c\n[editor]\nbackground = \"#101010\"\nlink = '#ABCDEF'\nbad = \"{{ nosuch }}\"\n[ui]\npanel = #202020 # trailing\n"));
+        QCOMPARE(parsed.value(QStringLiteral("editor.background")), QStringLiteral("#101010"));
+        QCOMPARE(parsed.value(QStringLiteral("editor.link")), QStringLiteral("#abcdef"));
+        QCOMPARE(parsed.value(QStringLiteral("ui.panel")), QStringLiteral("#202020"));
+        QVERIFY(!parsed.contains(QStringLiteral("editor.bad")));
+
+        QHash<QString, QString> partial{{QStringLiteral("editor.background"), QStringLiteral("#ffffff")},
+                                        {QStringLiteral("editor.foreground"), QStringLiteral("#000000")}};
+        AppTheme::complete(partial, false);
+        for (const QString &name : AppTheme::names())
+            QVERIFY2(QColor(partial.value(name)).isValid(), qPrintable(name));
+        QCOMPARE(partial.value(QStringLiteral("editor.heading")), QStringLiteral("#000000"));
+
+        const auto oma = AppTheme::omaPalette(QStringLiteral("#ff0000"));
+        QCOMPARE(oma.colors.value(QStringLiteral("ui.panel")), QStringLiteral("#111722"));
+        QCOMPARE(oma.colors.value(QStringLiteral("ui.accent")), QStringLiteral("#ff0000"));
+    }
+
+    void builtInTemplateCoversEveryName() {
+        QFile file(QFINDTESTDATA("../../themed/omazettel.toml.tpl"));
+        QVERIFY(file.open(QIODevice::ReadOnly | QIODevice::Text));
+        const QString text = QString::fromUtf8(file.readAll());
+        QHash<QString, QString> colors;
+        for (const char *name : {"background", "foreground", "cursor", "selection_background", "selection_foreground",
+                                 "bright_foreground", "blue", "accent", "magenta", "yellow", "cyan", "lighter_background",
+                                 "light_foreground", "dark_foreground", "orange", "dark_background"})
+            colors.insert(QString::fromLatin1(name), QStringLiteral("#336699"));
+        const auto parsed = AppTheme::parse(AppTheme::render(text, colors));
+        for (const QString &name : AppTheme::names())
+            QVERIFY2(parsed.contains(name), qPrintable(name));
+    }
+
+    void followsTheOmarchyTheme() {
+        // A home of its own with a current Omarchy theme.
+        QTemporaryDir home;
+        const QByteArray realHome = qgetenv("HOME");
+        qputenv("HOME", home.path().toUtf8());
+        const auto restore = qScopeGuard([&realHome]() { qputenv("HOME", realHome); });
+        const QString themeDir = home.filePath(QStringLiteral(".local/state/omarchy/current/theme"));
+        writeFile(themeDir + QStringLiteral("/colors.toml"),
+                  "mode = \"light\"\naccent = \"#ff8800\"\nbackground = \"#fafafa\"\nforeground = \"#202020\"\n"
+                  "blue = \"#0044cc\"\nmagenta = \"#aa00aa\"\nyellow = \"#aa8800\"\ncyan = \"#007788\"\n");
+
+        Backend backend;
+        backend.setOmaPalette(false);
+        backend.setDarkMode(false);
+        QCOMPARE(backend.themeSource(), QStringLiteral("built-in template"));
+        QCOMPARE(backend.themeBackground().toLower(), QStringLiteral("#fafafa"));
+        QVERIFY(!backend.darkMode());
+        QVariantMap tokens = backend.themeTokens();
+        QCOMPARE(tokens.value(QStringLiteral("ui.accent")).toString(), QStringLiteral("#ff8800"));
+        QCOMPARE(tokens.value(QStringLiteral("editor.tag")).toString(), QStringLiteral("#aa00aa"));
+        for (const QString &name : AppTheme::names())
+            QVERIFY2(tokens.contains(name), qPrintable(name));
+
+        // The user's template wins over the built-in one...
+        const QString user = backend.customizeThemeTemplate();
+        QCOMPARE(user, home.filePath(QStringLiteral(".config/omarchy/themed/omazettel.toml.tpl")));
+        QString text = readFile(user);
+        text.replace(QStringLiteral("tag = \"{{ magenta }}\""), QStringLiteral("tag = \"{{ blue }}\""));
+        writeFile(user, text.toUtf8());
+        backend.setDarkMode(false);
+        QCOMPARE(backend.themeSource(), QStringLiteral("your template"));
+        QCOMPARE(backend.themeTokens().value(QStringLiteral("editor.tag")).toString(), QStringLiteral("#0044cc"));
+
+        // ...and a theme's own file wins over both.
+        writeFile(themeDir + QStringLiteral("/omazettel.toml"), "[editor]\ntag = \"#00ff00\"\n[ui]\npanel = \"#eeeeee\"\n");
+        backend.setDarkMode(false);
+        QCOMPARE(backend.themeSource(), QStringLiteral("theme file"));
+        tokens = backend.themeTokens();
+        QCOMPARE(tokens.value(QStringLiteral("editor.tag")).toString(), QStringLiteral("#00ff00"));
+        QCOMPARE(tokens.value(QStringLiteral("ui.panel")).toString(), QStringLiteral("#eeeeee"));
+        // Names the file leaves out still have colours.
+        QCOMPARE(tokens.value(QStringLiteral("editor.background")).toString(), QStringLiteral("#fafafa"));
+
+        // The Oma palette overrides it all but the accent.
+        backend.setOmaPalette(true);
+        QCOMPARE(backend.themeSource(), QStringLiteral("Oma palette"));
+        QCOMPARE(backend.themeTokens().value(QStringLiteral("ui.panel")).toString(), QStringLiteral("#111722"));
+        QCOMPARE(backend.themeAccent().toLower(), QStringLiteral("#ff8800"));
+        backend.setOmaPalette(false);
     }
 
     // ── Oma palette ─────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@
         <file alias="ExternalChangeDialog.qml">ExternalChangeDialog.qml</file>
         <file alias="FontPicker.qml">FontPicker.qml</file>
         <file alias="EditorMutations.js">EditorMutations.js</file>
+        <file alias="themed/omazettel.toml.tpl">../themed/omazettel.toml.tpl</file>
         <file alias="Sidebar.qml">Sidebar.qml</file>
         <file alias="NameDialog.qml">NameDialog.qml</file>
         <file alias="IconButton.qml">IconButton.qml</file>

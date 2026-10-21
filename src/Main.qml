@@ -18,15 +18,16 @@ ApplicationWindow {
     readonly property bool darkMode: backend.darkMode
     readonly property color pageColor: backend.themeBackground
     readonly property color textColor: backend.themeForeground
-    readonly property color mutedColor: omaPalette ? "#727E90" : (darkMode ? "#909191" : "#aeb1b5")
-    // OmaZettel chrome colours. With the Oma palette (OmaShow's Theme.qml)
-    // they are fixed; otherwise they are derived from the Omarchy theme.
+    // OmaZettel chrome colours, by name from the theme file (or the Oma
+    // palette): see themed/omazettel.toml.tpl.
+    readonly property var themeTokens: backend.themeTokens
     readonly property bool omaPalette: backend.omaPalette
-    readonly property color panelColor: omaPalette ? "#111722"
-        : (darkMode ? Qt.lighter(pageColor, 1.25) : Qt.darker(pageColor, 1.04))
-    readonly property color raisedColor: omaPalette ? "#171E2A" : (darkMode ? "#1a1a1a" : "#ffffff")
-    readonly property color fieldColor: omaPalette ? "#1B2431" : (darkMode ? "#202020" : "#f6f6f6")
-    readonly property color borderColor: omaPalette ? "#293241" : (darkMode ? "#343434" : "#d8d8d8")
+    readonly property color mutedColor: themeTokens["ui.muted"] || (darkMode ? "#909191" : "#aeb1b5")
+    readonly property color panelColor: themeTokens["ui.panel"] || pageColor
+    readonly property color raisedColor: themeTokens["ui.raised"] || pageColor
+    readonly property color fieldColor: themeTokens["ui.field"] || pageColor
+    readonly property color borderColor: themeTokens["ui.border"] || mutedColor
+    readonly property color caretColor: themeTokens["editor.cursor"] || textColor
     readonly property color selectionFill: backend.themeSelection
     readonly property color selectionTextColor: backend.themeSelectionForeground
     // The desktop's text size knob (GNOME's text-scaling-factor, which
@@ -1137,6 +1138,7 @@ ApplicationWindow {
         onSyncDialogRequested: { close(); syncDialog.open(); }
         onCitationsRequested: { close(); citationsDialog.open(); }
         onTemplatesRequested: win.runCommand("templates")
+        onEditFileRequested: function(path) { close(); win.openNote(vault.urlForPath(path)); }
         onClosed: editor.forceActiveFocus()
     }
 
@@ -1577,7 +1579,7 @@ ApplicationWindow {
                 renderType: Screen.devicePixelRatio % 1 === 0 ? TextEdit.NativeRendering : TextEdit.QtRendering
                 cursorDelegate: Rectangle {
                     width: 1
-                    color: win.textColor
+                    color: win.caretColor
                 }
                 onCursorRectangleChanged: editorFlick.ensureCursorVisible()
                 onCursorPositionChanged: {
@@ -2132,7 +2134,7 @@ ApplicationWindow {
 
             background: Rectangle {
                 radius: 9
-                color: win.omaPalette ? win.raisedColor : win.darkMode ? "#22221f" : "#fffef2"
+                color: win.raisedColor
             }
 
             RowLayout {
@@ -2260,7 +2262,7 @@ ApplicationWindow {
                 Rectangle {
                     Layout.preferredWidth: 1
                     Layout.preferredHeight: 34
-                    color: win.omaPalette ? win.borderColor : win.darkMode ? "#6f6f62" : "#d5d56e"
+                    color: win.borderColor
                 }
 
                 SearchIconButton {

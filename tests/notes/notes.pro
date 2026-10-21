@@ -7,6 +7,7 @@ INCLUDEPATH += ../../src
 SOURCES += \
     tst_notes.cpp \
     ../../src/backend.cpp \
+    ../../src/apptheme.cpp \
     ../../src/backend_notes.cpp \
     ../../src/markdownhighlighter.cpp \
     ../../src/markdownhighlighter_notes.cpp \
@@ -19,6 +20,7 @@ SOURCES += \
     ../../src/zettel.cpp \
     ../../src/vault.cpp
 HEADERS += \
+    ../../src/apptheme.h \
     ../../src/backend.h \
     ../../src/markdownhighlighter.h \
     ../../src/citations.h \
@@ -31,3 +33,6 @@ HEADERS += \
     ../../src/vault.h
 
 QT += widgets printsupport quickcontrols2 quickdialogs2 dbus
+
+# The app's bundled files (the built-in theme template).
+RESOURCES += ../../src/resources.qrc

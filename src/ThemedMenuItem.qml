@@ -6,12 +6,12 @@ import QtQuick.Controls
 MenuItem {
     id: item
 
-    readonly property bool omaPalette: typeof backend !== "undefined" && backend !== null && backend.omaPalette
+    readonly property var themeTokens: typeof backend !== "undefined" && backend !== null ? backend.themeTokens : ({})
     readonly property bool dark: typeof backend === "undefined" || backend === null || backend.darkMode
     readonly property real textScale: typeof backend !== "undefined" && backend !== null ? backend.textScale : 1
     readonly property color accent: typeof backend !== "undefined" && backend !== null ? backend.themeAccent : "#428bca"
-    readonly property color textColor: omaPalette ? "#E7EDF7" : (dark ? "#d0d0d0" : "#42464c")
-    readonly property color mutedColor: omaPalette ? "#727E90" : (dark ? "#909191" : "#aeb1b5")
+    readonly property color textColor: themeTokens["editor.foreground"] || (dark ? "#d0d0d0" : "#42464c")
+    readonly property color mutedColor: themeTokens["ui.muted"] || (dark ? "#909191" : "#aeb1b5")
 
     implicitWidth: Math.round(280 * textScale)
     implicitHeight: visible ? Math.round(30 * textScale) : 0

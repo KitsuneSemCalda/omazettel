@@ -1,5 +1,7 @@
 #pragma once
 
+#include <QColor>
+#include <QHash>
 #include <QRegularExpression>
 #include <QSyntaxHighlighter>
 #include <QTextCharFormat>
@@ -16,6 +18,8 @@ public:
     void setSearch(const QString &query, int currentMatchStart);
     void setCaret(int position);
     void refreshFont();
+    // OmaZettel: theme colours by name (heading, link, wikilink, tag, ...).
+    void setZettelColors(const QHash<QString, QColor> &colors);
 
     struct Span {
         int start;
@@ -69,6 +73,7 @@ private:
     void highlightSearch(const QString &text);
     // OmaZettel: [[wiki links]] and #tags (markdownhighlighter_notes.cpp).
     void highlightZettel(const QString &text);
+    void applyZettelColors();
 
     bool m_darkMode = true;
     QString m_customBackground;
@@ -93,5 +98,6 @@ private:
     // so they can be seen and edited.
     QTextCursor m_caret;
     QTextCharFormat m_searchFormat;
+    QHash<QString, QColor> m_zettelColors;
     QTextCharFormat m_currentSearchFormat;
 };

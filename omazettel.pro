@@ -5,6 +5,7 @@ TARGET = omazettel
 TEMPLATE = app
 
 HEADERS += \
+    src/apptheme.h \
     src/backend.h \
     src/cli.h \
     src/markdownhighlighter.h \
@@ -21,6 +22,7 @@ HEADERS += \
 SOURCES += \
     src/main.cpp \
     src/backend.cpp \
+    src/apptheme.cpp \
     src/backend_notes.cpp \
     src/cli.cpp \
     src/markdownhighlighter.cpp \

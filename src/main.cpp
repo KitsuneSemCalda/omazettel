@@ -22,7 +22,7 @@
 #include "sync.h"
 #include "vault.h"
 
-#define OMAZETTEL_VERSION "0.5.0"
+#define OMAZETTEL_VERSION "0.6.0"
 
 int main(int argc, char *argv[]) {
     // Answered before the application exists, so they need no display.
@@ -52,8 +52,8 @@ int main(int argc, char *argv[]) {
     QQuickStyle::setStyle(QStringLiteral("Material"));
 
     Backend backend(&app);
-    // OmaZettel: the Oma palette is on unless turned off.
-    backend.setOmaPalette(QSettings().value(QStringLiteral("appearance/omaPalette"), true).toBool());
+    // OmaZettel: colours follow the Omarchy theme unless the Oma palette is on.
+    backend.setOmaPalette(QSettings().value(QStringLiteral("appearance/omaPalette"), false).toBool());
     SystemTheme systemTheme(&app);
     backend.setDarkMode(systemTheme.darkMode());
     QObject::connect(&systemTheme, &SystemTheme::darkModeChanged, &backend,

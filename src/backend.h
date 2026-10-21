@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QHash>
 #include <QObject>
 #include <QPointer>
 #include <QByteArray>
@@ -37,6 +38,10 @@ class Backend : public QObject {
     // OmaZettel: the shared Oma palette for the page and text (the accent
     // still follows the Omarchy theme).
     Q_PROPERTY(bool omaPalette READ omaPalette WRITE setOmaPalette NOTIFY themeColorsChanged)
+    // Every named colour (see themed/omazettel.toml.tpl): "editor.link",
+    // "ui.panel", ... and where they came from.
+    Q_PROPERTY(QVariantMap themeTokens READ themeTokens NOTIFY themeColorsChanged)
+    Q_PROPERTY(QString themeSource READ themeSource NOTIFY themeColorsChanged)
 
 public:
     explicit Backend(QObject *parent = nullptr);
@@ -112,6 +117,11 @@ public:
     Q_INVOKABLE void followMovedFile(const QUrl &newUrl);
     bool omaPalette() const { return m_omaPalette; }
     void setOmaPalette(bool enabled);
+    QVariantMap themeTokens() const;
+    QString themeSource() const { return m_themeSource; }
+    // Copies the built-in template to ~/.config/omarchy/themed/ (if it is not
+    // there yet) to customise, and returns its path.
+    Q_INVOKABLE QString customizeThemeTemplate();
     // The [[wiki link]] target at a document position, or "".
     Q_INVOKABLE QString wikiLinkAt(int position) const;
     // The [[ query being typed before position on its line, or null when
@@ -180,7 +190,9 @@ private:
     void watchCurrentFile();
     void checkWatchedFile();
     void loadOmarchyTheme();
-    void applyOmaPalette();
+    void applyAppTheme();
+    void applyHighlighterColors();
+    void watchAppTheme();
     void watchOmarchyTheme();
 
     QUrl m_fileUrl;
@@ -228,6 +240,8 @@ private:
     QString m_themeSelectionForeground;
     QString m_editorFont;
     bool m_omaPalette = false;
+    QHash<QString, QString> m_themeTokens;
+    QString m_themeSource;
     QFileSystemWatcher m_themeWatcher;
     QTimer m_themeReloadTimer;
 };

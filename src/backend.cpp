@@ -280,6 +280,7 @@ void Backend::attachDocument(QObject *textDocument) {
     m_highlighter = new MarkdownHighlighter(m_document);
     m_highlighter->setTheme(m_darkMode, m_themeBackground, m_themeForeground, m_themeAccent,
                             m_themeCodeBackground);
+    applyHighlighterColors();
     m_highlighter->setCaret(m_caretPosition);
 
     connect(m_document, &QTextDocument::contentsChange, this,
@@ -1154,8 +1155,6 @@ void Backend::loadOmarchyTheme() {
     m_themeSelectionForeground = m_themeForeground;
     applyColor(m_themeSelectionForeground, brightForeground);
     applyColor(m_themeSelectionForeground, selectionForeground);
-    // OmaZettel: the Oma palette replaces the page and text colours.
-    applyOmaPalette();
 
     // Omarchy themes name a lighter background for panels like the one code
     // sits on, so use the shade the theme chose. Not every theme sets the key,
@@ -1167,6 +1166,9 @@ void Backend::loadOmarchyTheme() {
     m_themeCodeBackground = (lighter.isValid() && lighter != page
                                  ? lighter
                                  : blend(page, QColor(m_themeForeground), 0.06)).name();
+
+    // OmaZettel: the app's theme file or the Oma palette decides the colours.
+    applyAppTheme();
 
     if (m_highlighter) {
         m_highlighter->setTheme(m_darkMode, m_themeBackground, m_themeForeground,
@@ -1198,6 +1200,7 @@ void Backend::watchOmarchyTheme() {
         m_themeWatcher.addPath(themeDir);
     if (QFile::exists(colorsPath))
         m_themeWatcher.addPath(colorsPath);
+    watchAppTheme();
 }
 
 QUrl Backend::suggestedSaveUrl() const {

@@ -8,12 +8,12 @@ Button {
     property bool darkMode: true
     property color labelColor: primary
         ? ((0.2126 * activeColor.r + 0.7152 * activeColor.g + 0.0722 * activeColor.b) > 0.55 ? "#04121A" : "#ffffff")
-        : (omaPalette ? "#E7EDF7" : "#d0d0d0")
+        : (themeTokens["editor.foreground"] || "#d0d0d0")
     property color activeColor: "#428bca"
     property real textScale: 1
     property string formattedText: ""
-    // OmaZettel: the Oma palette's surfaces when it is on.
-    readonly property bool omaPalette: typeof backend !== "undefined" && backend !== null && backend.omaPalette
+    // OmaZettel: the theme's named colours (themed/omazettel.toml.tpl).
+    readonly property var themeTokens: typeof backend !== "undefined" && backend !== null ? backend.themeTokens : ({})
 
     leftPadding: 16
     rightPadding: 16
@@ -40,14 +40,14 @@ Button {
         color: control.primary
             ? (control.down ? Qt.darker(control.activeColor, 1.15) : control.hovered ? Qt.lighter(control.activeColor, 1.1) : control.activeColor)
             : control.down
-                ? (control.omaPalette ? "#171E2A" : control.darkMode ? "#2a2a2a" : "#dedede")
+                ? (control.themeTokens["ui.raised"] ? Qt.darker(control.themeTokens["ui.field"], 1.15) : control.darkMode ? "#2a2a2a" : "#dedede")
                 : control.hovered
-                    ? (control.omaPalette ? "#222D3D" : control.darkMode ? "#242424" : "#eeeeee")
-                    : (control.omaPalette ? "#1B2431" : control.darkMode ? "#202020" : "#f6f6f6")
+                    ? (control.themeTokens["ui.field"] ? Qt.lighter(control.themeTokens["ui.field"], 1.18) : control.darkMode ? "#242424" : "#eeeeee")
+                    : (control.themeTokens["ui.field"] || (control.darkMode ? "#202020" : "#f6f6f6"))
         border.color: control.activeFocus
-            ? (control.omaPalette ? "#E7EDF7" : control.darkMode ? "#eeeeee" : "#222324")
+            ? (control.themeTokens["editor.foreground"] || (control.darkMode ? "#eeeeee" : "#222324"))
             : control.primary
                 ? Qt.darker(control.activeColor, 1.1)
-                : (control.omaPalette ? "#3A4658" : control.darkMode ? "#424242" : "#c8c8c8")
+                : (control.themeTokens["ui.border"] || (control.darkMode ? "#424242" : "#c8c8c8"))
     }
 }

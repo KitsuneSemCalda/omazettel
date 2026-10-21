@@ -27,6 +27,43 @@ int frontMatterEnd(const QTextDocument *document) {
 }
 }
 
+void MarkdownHighlighter::setZettelColors(const QHash<QString, QColor> &colors) {
+    if (m_zettelColors == colors)
+        return;
+    m_zettelColors = colors;
+    rebuildFormats();
+    rehighlightAll();
+}
+
+// Theme colours over the formats rebuildFormats() made.
+void MarkdownHighlighter::applyZettelColors() {
+    const auto color = [this](const char *name) { return m_zettelColors.value(QString::fromLatin1(name)); };
+    if (color("heading").isValid())
+        m_headingFormat.setForeground(color("heading"));
+    if (color("bold").isValid())
+        m_boldFormat.setForeground(color("bold"));
+    if (color("italic").isValid())
+        m_italicFormat.setForeground(color("italic"));
+    if (color("link").isValid())
+        m_linkFormat.setForeground(color("link"));
+    if (color("code").isValid())
+        m_codeFormat.setForeground(color("code"));
+    if (color("code_background").isValid()) {
+        m_codeFormat.setBackground(color("code_background"));
+        m_fenceFormat.setBackground(color("code_background"));
+    }
+    if (color("quote").isValid())
+        m_quoteFormat.setForeground(color("quote"));
+    if (color("marker").isValid()) {
+        m_markerFormat.setForeground(color("marker"));
+        m_fenceFormat.setForeground(color("marker"));
+    }
+    if (color("search").isValid())
+        m_searchFormat.setBackground(color("search"));
+    if (color("search_current").isValid())
+        m_currentSearchFormat.setBackground(color("search_current"));
+}
+
 void MarkdownHighlighter::highlightZettel(const QString &text) {
     // The YAML header pandoc reads (title, author, tags, ...) recedes, keys
     // muted, so the note's own text stands out.
@@ -53,7 +90,9 @@ void MarkdownHighlighter::highlightZettel(const QString &text) {
         static const QRegularExpression keyRe(QStringLiteral("(?<![\\w@.])@[\\w][\\w:.#$%&+?<>~/-]*"));
         const auto code = Zettel::codeRanges(text);
         QTextCharFormat citeFormat;
-        citeFormat.setForeground(m_linkFormat.foreground());
+        citeFormat.setForeground(m_zettelColors.value(QStringLiteral("citation")).isValid()
+                                     ? QBrush(m_zettelColors.value(QStringLiteral("citation")))
+                                     : m_linkFormat.foreground());
         auto it = keyRe.globalMatch(text);
         while (it.hasNext()) {
             const QRegularExpressionMatch match = it.next();
@@ -79,6 +118,8 @@ void MarkdownHighlighter::highlightZettel(const QString &text) {
 
     QTextCharFormat linkFormat = m_linkFormat;
     linkFormat.setFontUnderline(false);
+    if (m_zettelColors.value(QStringLiteral("wikilink")).isValid())
+        linkFormat.setForeground(m_zettelColors.value(QStringLiteral("wikilink")));
     const auto merge = [this](int start, int length, const QTextCharFormat &extra) {
         for (int i = start; i < start + length; ++i) {
             QTextCharFormat merged = format(i);
@@ -105,7 +146,9 @@ void MarkdownHighlighter::highlightZettel(const QString &text) {
     }
 
     QTextCharFormat tagFormat;
-    tagFormat.setForeground(m_linkFormat.foreground());
+    tagFormat.setForeground(m_zettelColors.value(QStringLiteral("tag")).isValid()
+                                ? QBrush(m_zettelColors.value(QStringLiteral("tag")))
+                                : m_linkFormat.foreground());
     for (const Zettel::TagSpan &tag : tagSpans)
         merge(tag.start, tag.length, tagFormat);
 }
