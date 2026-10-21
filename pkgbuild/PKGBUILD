@@ -2,7 +2,7 @@
 #
 # Builds OmaZettel from this checkout: ./bin/install (or makepkg -fsi here).
 # For a release from the repository instead, set
-#   source=("git+https://github.com/mcsmith3/omazettel.git#tag=v$pkgver")
+#   source=("git+https://github.com/mcsmith3/omazettel.git#tag=omazettel-v$pkgver")
 # and build in "$srcdir/omazettel".
 
 pkgname=omazettel
