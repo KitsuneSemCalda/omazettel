@@ -9,6 +9,7 @@
 #include <QUrl>
 #include <QWindow>
 #include <QFile>
+#include <QSettings>
 
 #include "backend.h"
 #include "cli.h"
@@ -48,6 +49,8 @@ int main(int argc, char *argv[]) {
     QQuickStyle::setStyle(QStringLiteral("Material"));
 
     Backend backend(&app);
+    // OmaZettel: the Oma palette is on unless turned off.
+    backend.setOmaPalette(QSettings().value(QStringLiteral("appearance/omaPalette"), true).toBool());
     SystemTheme systemTheme(&app);
     backend.setDarkMode(systemTheme.darkMode());
     QObject::connect(&systemTheme, &SystemTheme::darkModeChanged, &backend,

@@ -10,6 +10,9 @@ Dialog {
     objectName: "exportDialog"
 
     property bool darkMode: true
+    property color raisedColor: darkMode ? "#1a1a1a" : "#ffffff"
+    property color borderColor: darkMode ? "#343434" : "#d8d8d8"
+    property color fieldColor: darkMode ? "#202020" : "#f6f6f6"
     property real textScale: 1
     property color textColor: "#d0d0d0"
     property color mutedColor: "#909191"
@@ -172,8 +175,8 @@ Dialog {
     Overlay.modal: Rectangle { color: Qt.rgba(0, 0, 0, 0.5) }
 
     background: Rectangle {
-        color: root.darkMode ? "#1a1a1a" : "#ffffff"
-        border.color: root.darkMode ? "#343434" : "#d8d8d8"
+        color: root.raisedColor
+        border.color: root.borderColor
     }
 
     component SmallLabel: Label {
@@ -273,8 +276,8 @@ Dialog {
                 Rectangle {
                     Layout.fillWidth: true
                     height: root.scaled(34)
-                    color: root.darkMode ? "#202020" : "#f6f6f6"
-                    border.color: outputField.activeFocus ? root.accentColor : (root.darkMode ? "#424242" : "#c8c8c8")
+                    color: root.fieldColor
+                    border.color: outputField.activeFocus ? root.accentColor : root.borderColor
                     TextInput {
                         id: outputField
                         objectName: "exportOutputField"

@@ -34,6 +34,9 @@ class Backend : public QObject {
     Q_PROPERTY(QString themeSelectionForeground READ themeSelectionForeground NOTIFY themeColorsChanged)
     Q_PROPERTY(QString editorFont READ editorFont WRITE setEditorFont NOTIFY editorFontChanged)
     Q_PROPERTY(QStringList availableFonts READ availableFonts CONSTANT)
+    // OmaZettel: the shared Oma palette for the page and text (the accent
+    // still follows the Omarchy theme).
+    Q_PROPERTY(bool omaPalette READ omaPalette WRITE setOmaPalette NOTIFY themeColorsChanged)
 
 public:
     explicit Backend(QObject *parent = nullptr);
@@ -107,6 +110,8 @@ public:
     Q_INVOKABLE bool moveCurrentFile(const QUrl &newUrl);
     Q_INVOKABLE void startNewDocument();
     Q_INVOKABLE void followMovedFile(const QUrl &newUrl);
+    bool omaPalette() const { return m_omaPalette; }
+    void setOmaPalette(bool enabled);
     // The [[wiki link]] target at a document position, or "".
     Q_INVOKABLE QString wikiLinkAt(int position) const;
     // The [[ query being typed before position on its line, or null when
@@ -167,6 +172,7 @@ private:
     void watchCurrentFile();
     void checkWatchedFile();
     void loadOmarchyTheme();
+    void applyOmaPalette();
     void watchOmarchyTheme();
 
     QUrl m_fileUrl;
@@ -213,6 +219,7 @@ private:
     QString m_themeCodeBackground;
     QString m_themeSelectionForeground;
     QString m_editorFont;
+    bool m_omaPalette = false;
     QFileSystemWatcher m_themeWatcher;
     QTimer m_themeReloadTimer;
 };

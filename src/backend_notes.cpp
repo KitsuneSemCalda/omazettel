@@ -8,7 +8,9 @@
 #include <QTextDocument>
 #include <QRegularExpression>
 
+#include <QColor>
 #include <QDir>
+#include <QSettings>
 #include <QFile>
 #include <QFileInfo>
 
@@ -155,4 +157,32 @@ int Backend::headingPosition(const QString &text) const {
             return heading.offset;
     }
     return -1;
+}
+
+// The shared Oma design palette (as in OmaShow's Theme.qml): a fixed dark
+// surround so the writing reads the same whatever the desktop does, with the
+// accent left to the Omarchy theme.
+void Backend::applyOmaPalette() {
+    if (!m_omaPalette)
+        return;
+    m_darkMode = true;
+    m_themeBackground = QStringLiteral("#0B0E13");
+    m_themeForeground = QStringLiteral("#E7EDF7");
+    const QColor accent(m_themeAccent);
+    const QColor page(m_themeBackground);
+    // An opaque selection: the accent two fifths of the way over the page.
+    const QColor selection = QColor::fromRgbF(page.redF() + (accent.redF() - page.redF()) * 0.4,
+                                              page.greenF() + (accent.greenF() - page.greenF()) * 0.4,
+                                              page.blueF() + (accent.blueF() - page.blueF()) * 0.4);
+    m_themeSelection = selection.name();
+    m_themeSelectionForeground = m_themeForeground;
+}
+
+void Backend::setOmaPalette(bool enabled) {
+    if (m_omaPalette == enabled)
+        return;
+    m_omaPalette = enabled;
+    QSettings().setValue(QStringLiteral("appearance/omaPalette"), enabled);
+    loadOmarchyTheme();
+    emit themeColorsChanged();
 }

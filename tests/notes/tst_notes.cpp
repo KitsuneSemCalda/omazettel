@@ -1116,6 +1116,39 @@ private slots:
         QCOMPARE(editor->property("cursorPosition").toInt(), 33);
     }
 
+    // ── Oma palette ─────────────────────────────────────────────────────────
+
+    void omaPaletteSetsTheSurround() {
+        Backend backend;
+        QSignalSpy colors(&backend, &Backend::themeColorsChanged);
+        backend.setOmaPalette(true);
+        QVERIFY(colors.count() >= 1);
+        QVERIFY(backend.darkMode());
+        QCOMPARE(backend.themeBackground().toUpper(), QStringLiteral("#0B0E13"));
+        QCOMPARE(backend.themeForeground().toUpper(), QStringLiteral("#E7EDF7"));
+        // The selection mixes the accent into the page, so it stays opaque.
+        QVERIFY(QColor(backend.themeSelection()).isValid());
+        QVERIFY(backend.themeSelection().toUpper() != backend.themeAccent().toUpper());
+        QVERIFY(QSettings().value(QStringLiteral("appearance/omaPalette")).toBool());
+
+        backend.setOmaPalette(false);
+        QVERIFY(backend.themeBackground().toUpper() != QStringLiteral("#0B0E13"));
+        QVERIFY(!QSettings().value(QStringLiteral("appearance/omaPalette")).toBool());
+    }
+
+    void windowUsesPaletteColours() {
+        Backend backend;
+        backend.setOmaPalette(true);
+        Vault vault;
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+        QCOMPARE(window->property("panelColor").value<QColor>(), QColor(QStringLiteral("#111722")));
+        auto *sidebar = window->findChild<QObject *>(QStringLiteral("sidebar"));
+        QCOMPARE(sidebar->property("panelColor").value<QColor>(), QColor(QStringLiteral("#111722")));
+        backend.setOmaPalette(false);
+        QVERIFY(window->property("panelColor").value<QColor>() != QColor(QStringLiteral("#111722")));
+    }
+
     // ── The window ──────────────────────────────────────────────────────────
 
     void sidebarOpensNotesInPlace() {

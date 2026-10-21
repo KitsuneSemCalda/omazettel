@@ -8,6 +8,8 @@ Popup {
     id: root
 
     property bool darkMode: true
+    property color raisedColor: darkMode ? "#1a1a1a" : "#ffffff"
+    property color borderColor: darkMode ? "#343434" : "#d8d8d8"
     property real textScale: 1
     property color textColor: "#d0d0d0"
     property color mutedColor: "#909191"
@@ -119,8 +121,8 @@ Popup {
     Overlay.modal: Rectangle { color: Qt.rgba(0, 0, 0, 0.45) }
 
     background: Rectangle {
-        color: root.darkMode ? "#1a1a1a" : "#ffffff"
-        border.color: root.darkMode ? "#343434" : "#d8d8d8"
+        color: root.raisedColor
+        border.color: root.borderColor
         radius: root.scaled(6)
     }
 
@@ -167,7 +169,7 @@ Popup {
                 anchors.bottom: parent.bottom
                 width: parent.width
                 height: 1
-                color: root.darkMode ? "#343434" : "#d8d8d8"
+                color: root.borderColor
             }
         }
 

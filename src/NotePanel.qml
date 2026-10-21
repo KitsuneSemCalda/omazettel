@@ -27,8 +27,9 @@ Rectangle {
         return found;
     }
 
-    readonly property color panelColor: darkMode ? Qt.lighter(pageColor, 1.25) : Qt.darker(pageColor, 1.04)
-    readonly property color hairlineColor: Qt.rgba(mutedColor.r, mutedColor.g, mutedColor.b, 0.25)
+    property color panelColor: darkMode ? Qt.lighter(pageColor, 1.25) : Qt.darker(pageColor, 1.04)
+    property color borderColor: Qt.rgba(mutedColor.r, mutedColor.g, mutedColor.b, 0.25)
+    readonly property color hairlineColor: borderColor
     readonly property color hoverFill: Qt.rgba(textColor.r, textColor.g, textColor.b, 0.06)
     readonly property color chipFill: Qt.rgba(accentColor.r, accentColor.g, accentColor.b, 0.16)
 

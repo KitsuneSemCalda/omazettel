@@ -8,6 +8,9 @@ Dialog {
     objectName: "nameDialog"
 
     property bool darkMode: true
+    property color raisedColor: darkMode ? "#1a1a1a" : "#ffffff"
+    property color borderColor: darkMode ? "#343434" : "#d8d8d8"
+    property color fieldColor: darkMode ? "#202020" : "#f6f6f6"
     property color textColor: darkMode ? "#d0d0d0" : "#42464c"
     property color strongTextColor: darkMode ? "#eeeeee" : "#222324"
     property color activeButtonColor: "#428bca"
@@ -109,8 +112,8 @@ Dialog {
     Overlay.modal: Rectangle { color: Qt.rgba(0, 0, 0, 0.5) }
 
     background: Rectangle {
-        color: root.darkMode ? "#1a1a1a" : "#ffffff"
-        border.color: root.darkMode ? "#343434" : "#d8d8d8"
+        color: root.raisedColor
+        border.color: root.borderColor
         radius: 0
     }
 
@@ -166,9 +169,9 @@ Dialog {
             width: parent.width
             height: Math.round(36 * root.textScale)
             visible: root.wantsName
-            color: root.darkMode ? "#202020" : "#f6f6f6"
+            color: root.fieldColor
             border.color: nameField.activeFocus ? root.activeButtonColor
-                                                : (root.darkMode ? "#424242" : "#c8c8c8")
+                                                : root.borderColor
 
             TextInput {
                 id: nameField

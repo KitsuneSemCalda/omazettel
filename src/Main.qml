@@ -18,7 +18,15 @@ ApplicationWindow {
     readonly property bool darkMode: backend.darkMode
     readonly property color pageColor: backend.themeBackground
     readonly property color textColor: backend.themeForeground
-    readonly property color mutedColor: darkMode ? "#909191" : "#aeb1b5"
+    readonly property color mutedColor: omaPalette ? "#727E90" : (darkMode ? "#909191" : "#aeb1b5")
+    // OmaZettel chrome colours. With the Oma palette (OmaShow's Theme.qml)
+    // they are fixed; otherwise they are derived from the Omarchy theme.
+    readonly property bool omaPalette: backend.omaPalette
+    readonly property color panelColor: omaPalette ? "#111722"
+        : (darkMode ? Qt.lighter(pageColor, 1.25) : Qt.darker(pageColor, 1.04))
+    readonly property color raisedColor: omaPalette ? "#171E2A" : (darkMode ? "#1a1a1a" : "#ffffff")
+    readonly property color fieldColor: omaPalette ? "#1B2431" : (darkMode ? "#202020" : "#f6f6f6")
+    readonly property color borderColor: omaPalette ? "#293241" : (darkMode ? "#343434" : "#d8d8d8")
     readonly property color selectionFill: backend.themeSelection
     readonly property color selectionTextColor: backend.themeSelectionForeground
     // The desktop's text size knob (GNOME's text-scaling-factor, which
@@ -842,6 +850,9 @@ ApplicationWindow {
 
     NameDialog {
         id: nameDialog
+        raisedColor: win.raisedColor
+        fieldColor: win.fieldColor
+        borderColor: win.borderColor
         darkMode: win.darkMode
         textScale: win.textScale
         textColor: win.textColor
@@ -856,6 +867,8 @@ ApplicationWindow {
 
     Sidebar {
         id: sidebar
+        panelColor: win.panelColor
+        borderColor: win.borderColor
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.bottom: parent.bottom
@@ -886,6 +899,8 @@ ApplicationWindow {
 
     NotePanel {
         id: notePanel
+        panelColor: win.panelColor
+        borderColor: win.borderColor
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
@@ -910,6 +925,9 @@ ApplicationWindow {
 
     ExportDialog {
         id: exportDialog
+        raisedColor: win.raisedColor
+        fieldColor: win.fieldColor
+        borderColor: win.borderColor
         darkMode: win.darkMode
         textScale: win.textScale
         textColor: win.textColor
@@ -931,6 +949,8 @@ ApplicationWindow {
 
     NotePicker {
         id: quickSwitcher
+        raisedColor: win.raisedColor
+        borderColor: win.borderColor
         objectName: "quickSwitcher"
         hasField: true
         darkMode: win.darkMode
@@ -1642,6 +1662,8 @@ ApplicationWindow {
 
                 NotePicker {
                     id: linkCompleter
+                    raisedColor: win.raisedColor
+                    borderColor: win.borderColor
                     objectName: "linkCompleter"
                     hasField: false
                     property int queryStart: 0

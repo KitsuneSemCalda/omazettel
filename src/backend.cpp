@@ -1154,6 +1154,8 @@ void Backend::loadOmarchyTheme() {
     m_themeSelectionForeground = m_themeForeground;
     applyColor(m_themeSelectionForeground, brightForeground);
     applyColor(m_themeSelectionForeground, selectionForeground);
+    // OmaZettel: the Oma palette replaces the page and text colours.
+    applyOmaPalette();
 
     // Omarchy themes name a lighter background for panels like the one code
     // sits on, so use the shade the theme chose. Not every theme sets the key,
