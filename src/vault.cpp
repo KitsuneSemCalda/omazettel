@@ -30,6 +30,7 @@ Vault::Vault(QObject *parent) : QObject(parent), m_model(new QFileSystemModel(th
     m_sidebarVisible = settings.value(sidebarVisibleSetting, true).toBool();
     m_sidebarWidth = settings.value(sidebarWidthSetting, 260).toInt();
     m_panelVisible = settings.value(panelVisibleSetting, true).toBool();
+    m_autoCreateLinks = settings.value(QStringLiteral("notes/autoCreateLinks"), true).toBool();
 
     const QString saved = settings.value(folderSetting).toString();
     if (!saved.isEmpty() && QFileInfo(saved).isDir())
@@ -58,6 +59,14 @@ void Vault::setPanelVisible(bool visible) {
     m_panelVisible = visible;
     QSettings().setValue(panelVisibleSetting, visible);
     emit panelVisibleChanged();
+}
+
+void Vault::setAutoCreateLinks(bool enabled) {
+    if (m_autoCreateLinks == enabled)
+        return;
+    m_autoCreateLinks = enabled;
+    QSettings().setValue(QStringLiteral("notes/autoCreateLinks"), enabled);
+    emit autoCreateLinksChanged();
 }
 
 void Vault::setSidebarWidth(int width) {

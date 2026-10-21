@@ -86,6 +86,32 @@ void Exporter::setLastProfile(const QString &path) {
     reload();
 }
 
+QString Exporter::exportLocation() const {
+    return QSettings().value(QStringLiteral("export/location"), QStringLiteral("beside")).toString();
+}
+
+QString Exporter::exportsFolder() const {
+    return m_root.isEmpty() ? QString() : QDir(m_root).filePath(QStringLiteral("Exports"));
+}
+
+void Exporter::setExportLocation(const QString &location) {
+    const QString value = location == QLatin1String("folder") ? location : QStringLiteral("beside");
+    if (value == exportLocation())
+        return;
+    QSettings().setValue(QStringLiteral("export/location"), value);
+    // Exports are made from the notes; keep them out of git sync.
+    if (value == QLatin1String("folder") && !m_root.isEmpty()) {
+        const QString ignore = QDir(m_root).filePath(QStringLiteral(".gitignore"));
+        QString text = readText(ignore);
+        if (!text.split(QLatin1Char('\n')).contains(QStringLiteral("/Exports/"))) {
+            if (!text.isEmpty() && !text.endsWith(QLatin1Char('\n')))
+                text += QLatin1Char('\n');
+            writeText(ignore, text + QStringLiteral("# OmaZettel exports\n/Exports/\n"));
+        }
+    }
+    reload();
+}
+
 void Exporter::setRoot(const QString &notesRoot) {
     if (m_root == notesRoot)
         return;
@@ -366,7 +392,9 @@ QString Exporter::newProfile(const QString &name, const QString &baseProfile, co
 QString Exporter::defaultOutputPath(const QString &notePath, const QString &profilePath) const {
     const QFileInfo note(notePath);
     const QString extension = extensionFor(formatOf(readText(profilePath)));
-    return note.absoluteDir().filePath(note.completeBaseName() + QLatin1Char('.') + extension);
+    const QDir folder = exportLocation() == QLatin1String("folder") && !m_root.isEmpty()
+        ? QDir(exportsFolder()) : note.absoluteDir();
+    return folder.filePath(note.completeBaseName() + QLatin1Char('.') + extension);
 }
 
 // What pandoc reads: [[links]] become their text, and an OmaZettel template
@@ -641,7 +669,9 @@ bool Exporter::saveFolderSettings(const QString &folder, const QVariantList &ent
 
 QString Exporter::defaultFolderOutputPath(const QString &folder, const QString &profilePath) const {
     const QString extension = extensionFor(formatOf(readText(profilePath)));
-    return QDir(folder).filePath(QFileInfo(folder).fileName() + QLatin1Char('.') + extension);
+    const QDir target = exportLocation() == QLatin1String("folder") && !m_root.isEmpty()
+        ? QDir(exportsFolder()) : QDir(folder);
+    return target.filePath(QFileInfo(folder).fileName() + QLatin1Char('.') + extension);
 }
 
 QString Exporter::combineNotes(const QStringList &notePaths, const QString &title,

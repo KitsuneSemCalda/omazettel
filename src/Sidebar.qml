@@ -47,6 +47,7 @@ Rectangle {
     signal syncDialogRequested()
     signal syncNowRequested()
     signal historyRequested(string path)
+    signal settingsRequested()
     signal editTemplateRequested(string path)
     signal authorRequested()
 
@@ -547,78 +548,82 @@ Rectangle {
         }
     }
 
-    Menu {
+    ThemedMenu {
         id: folderMenu
-        MenuItem {
+        ThemedMenuItem {
             text: vault.isOpen ? "Change notes folder…" : "Choose notes folder…"
             onTriggered: root.chooseFolderRequested()
         }
-        Menu {
+        ThemedMenu {
             id: recentMenu
             title: "Recent folders"
             enabled: vault.recentFolders.length > 0
             Repeater {
                 model: vault.recentFolders
-                MenuItem {
+                ThemedMenuItem {
                     required property string modelData
                     text: vault.prettyPath(modelData)
                     onTriggered: vault.openFolder(modelData)
                 }
             }
         }
-        MenuSeparator { visible: vault.isOpen }
-        MenuItem {
+        ThemedMenuSeparator { visible: vault.isOpen }
+        ThemedMenuItem {
             text: "Today's daily note"
             enabled: vault.isOpen
             onTriggered: root.dailyNoteRequested()
         }
-        Menu {
+        ThemedMenu {
             id: templatesMenu
             title: "Edit note templates"
             enabled: vault.isOpen
             onAboutToShow: noteTemplates.ensureDefaults()
             Repeater {
                 model: noteTemplates.revision >= 0 && vault.isOpen ? noteTemplates.list() : []
-                MenuItem {
+                ThemedMenuItem {
                     required property var modelData
                     text: modelData.name
                     onTriggered: root.editTemplateRequested(modelData.path)
                 }
             }
-            MenuSeparator {}
-            MenuItem {
+            ThemedMenuSeparator {}
+            ThemedMenuItem {
                 text: "Open templates folder"
                 onTriggered: Qt.openUrlExternally(vault.urlForPath(noteTemplates.folder))
             }
         }
-        MenuItem {
+        ThemedMenuItem {
             text: "Export the whole notes folder…"
             enabled: vault.isOpen
             onTriggered: root.exportFolderRequested(vault.rootPath)
         }
-        MenuItem {
+        ThemedMenuItem {
             text: "Sync & history…"
             enabled: vault.isOpen
             onTriggered: root.syncDialogRequested()
         }
-        MenuItem {
+        ThemedMenuItem {
             text: "Citations…"
             enabled: vault.isOpen
             onTriggered: root.citationsRequested()
         }
-        MenuItem {
+        ThemedMenuItem {
             text: "Oma color palette"
             checkable: true
             checked: backend.omaPalette
             onTriggered: backend.omaPalette = checked
         }
-        MenuItem {
+        ThemedMenuItem {
             text: "Author name…"
             enabled: vault.isOpen
             onTriggered: root.authorRequested()
         }
-        MenuSeparator { visible: vault.isOpen }
-        MenuItem {
+        ThemedMenuItem {
+            text: "Settings…"
+            onTriggered: root.settingsRequested()
+        }
+        ThemedMenuSeparator { visible: vault.isOpen }
+        ThemedMenuItem {
             text: "Close notes folder"
             enabled: vault.isOpen
             onTriggered: vault.closeFolder()
@@ -886,35 +891,35 @@ Rectangle {
         }
     }
 
-    Menu {
+    ThemedMenu {
         id: itemMenu
         property string path: ""
         property bool isFolder: false
-        MenuItem {
+        ThemedMenuItem {
             text: "New note here"
             onTriggered: root.newNoteRequested(vault.folderFor(itemMenu.path))
         }
-        MenuItem {
+        ThemedMenuItem {
             text: "New folder here"
             onTriggered: root.newFolderRequested(vault.folderFor(itemMenu.path))
         }
-        MenuItem {
+        ThemedMenuItem {
             text: itemMenu.isFolder ? "Export folder…" : "Export…"
             onTriggered: itemMenu.isFolder ? root.exportFolderRequested(itemMenu.path)
                                            : root.exportRequested(itemMenu.path)
         }
-        MenuItem {
+        ThemedMenuItem {
             text: "History…"
             visible: !itemMenu.isFolder
             height: visible ? implicitHeight : 0
             onTriggered: root.historyRequested(itemMenu.path)
         }
-        MenuSeparator {}
-        MenuItem {
+        ThemedMenuSeparator {}
+        ThemedMenuItem {
             text: "Rename…"
             onTriggered: root.renameRequested(itemMenu.path)
         }
-        MenuItem {
+        ThemedMenuItem {
             text: "Move to trash"
             onTriggered: root.trashRequested(itemMenu.path)
         }

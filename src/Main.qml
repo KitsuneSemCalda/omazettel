@@ -253,7 +253,7 @@ ApplicationWindow {
     // note made, except the one the caret is in (it may be half typed).
     function createMissingLinkedNotes() {
         var path = currentPath();
-        if (!noteIndex.covers(path))
+        if (!vault.autoCreateLinks || !noteIndex.covers(path))
             return;
         var missing = noteIndex.missingTargets(path);
         if (missing.length === 0)
@@ -475,6 +475,90 @@ ApplicationWindow {
         }
         var isOpen = path === currentPath();
         exportDialog.openFor(path, isOpen ? editor.text : "", isOpen);
+    }
+
+    // ── Command palette ─────────────────────────────────────────────────────
+
+    // Every action, for Ctrl+Shift+P. name is what is searched and shown,
+    // title the shortcut. Actions that need a notes folder or an open note
+    // are left out when there is none.
+    function commandList() {
+        var hasFolder = vault.isOpen;
+        var hasNote = currentPath().length > 0;
+        var all = [
+            { id: "newNote", name: "New note", title: "Ctrl+N", when: hasFolder },
+            { id: "daily", name: "Today's daily note", title: "Ctrl+Shift+D", when: hasFolder },
+            { id: "newFolder", name: "New folder", title: "", when: hasFolder },
+            { id: "goto", name: "Go to note", title: "Ctrl+O", when: hasFolder },
+            { id: "search", name: "Search all notes", title: "Ctrl+Shift+F", when: hasFolder },
+            { id: "find", name: "Find in note", title: "Ctrl+F", when: true },
+            { id: "replace", name: "Find and replace", title: "Ctrl+H", when: true },
+            { id: "back", name: "Back", title: "Alt+Left", when: backStack.length > 0 },
+            { id: "forward", name: "Forward", title: "Alt+Right", when: forwardStack.length > 0 },
+            { id: "export", name: "Export note", title: "Ctrl+Shift+E", when: hasNote },
+            { id: "exportFolder", name: "Export this folder", title: "", when: hasFolder },
+            { id: "exportAll", name: "Export the whole notes folder", title: "", when: hasFolder },
+            { id: "history", name: "Note history", title: "", when: hasNote && sync.isRepo },
+            { id: "syncNow", name: sync.remoteUrl.length > 0 ? "Sync now" : "Save a version now", title: "Ctrl+Alt+S", when: sync.isRepo },
+            { id: "syncDialog", name: "Sync and history settings", title: "", when: hasFolder },
+            { id: "citations", name: "Citations", title: "", when: hasFolder },
+            { id: "templates", name: "Edit note templates", title: "", when: hasFolder },
+            { id: "rename", name: "Rename note", title: "", when: hasNote && noteIndex.covers(currentPath()) },
+            { id: "trash", name: "Move note to trash", title: "", when: hasNote && noteIndex.covers(currentPath()) },
+            { id: "sidebar", name: "Show or hide sidebar", title: "Ctrl+\\", when: true },
+            { id: "panel", name: "Show or hide backlinks, tags and outline", title: "Ctrl+Shift+B", when: hasFolder },
+            { id: "palette", name: backend.omaPalette ? "Use Omarchy theme colors" : "Use Oma color palette", title: "", when: true },
+            { id: "settings", name: "Settings", title: "Ctrl+,", when: true },
+            { id: "chooseFolder", name: hasFolder ? "Change notes folder" : "Choose notes folder", title: "", when: true },
+            { id: "openFile", name: "Open file", title: "Ctrl+Shift+O", when: true },
+            { id: "newWindow", name: "New window", title: "Ctrl+Shift+N", when: true },
+            { id: "print", name: "Print", title: "Ctrl+P", when: true },
+            { id: "copyHtml", name: "Copy as HTML", title: "Ctrl+Shift+C", when: true },
+            { id: "fullscreen", name: "Full screen", title: "F11", when: true },
+            { id: "shortcuts", name: "Keyboard shortcuts", title: "F1", when: true }
+        ];
+        return all.filter(function(command) { return command.when; }).map(function(command) {
+            return { id: command.id, name: command.name, title: command.title, folder: "", path: "" };
+        });
+    }
+
+    function runCommand(id) {
+        var folder = sidebar.targetFolder;
+        switch (id) {
+        case "newNote": newNote(folder); break;
+        case "daily": openDailyNote(); break;
+        case "newFolder": newFolder(folder); break;
+        case "goto": quickSwitcher.open(); break;
+        case "search": showNotesSearch(); break;
+        case "find": openSearch(false); break;
+        case "replace": openSearch(true); break;
+        case "back": goBack(); break;
+        case "forward": goForward(); break;
+        case "export": exportNote(currentPath()); break;
+        case "exportFolder": exportDialog.openForFolder(vault.folderFor(currentPath()), noteTemplates.author); break;
+        case "exportAll": exportDialog.openForFolder(vault.rootPath, noteTemplates.author); break;
+        case "history": openHistory(currentPath()); break;
+        case "syncNow": syncNotes(); break;
+        case "syncDialog": syncDialog.open(); break;
+        case "citations": citationsDialog.open(); break;
+        case "templates":
+            noteTemplates.ensureDefaults();
+            Qt.openUrlExternally(vault.urlForPath(noteTemplates.folder));
+            break;
+        case "rename": renameItem(currentPath()); break;
+        case "trash": trashItem(currentPath()); break;
+        case "sidebar": vault.sidebarVisible = !vault.sidebarVisible; break;
+        case "panel": vault.panelVisible = !vault.panelVisible; break;
+        case "palette": backend.omaPalette = !backend.omaPalette; break;
+        case "settings": settingsDialog.open(); break;
+        case "chooseFolder": chooseFolder(); break;
+        case "openFile": backend.openDialog(); break;
+        case "newWindow": backend.newWindow(); break;
+        case "print": backend.printDocument(); break;
+        case "copyHtml": backend.copyAsHtml(); break;
+        case "fullscreen": toggleFullScreen(); break;
+        case "shortcuts": shortcutsDialog.open(); break;
+        }
     }
 
     // ── Sync ────────────────────────────────────────────────────────────────
@@ -731,6 +815,19 @@ ApplicationWindow {
     }
 
     Shortcut {
+        sequence: "Ctrl+Shift+P"
+        onActivated: {
+            commandPalette.sourceItems = win.commandList();
+            commandPalette.open();
+        }
+    }
+
+    Shortcut {
+        sequence: "Ctrl+,"
+        onActivated: settingsDialog.open()
+    }
+
+    Shortcut {
         sequence: "Ctrl+Alt+S"
         onActivated: win.syncNotes()
     }
@@ -967,6 +1064,7 @@ ApplicationWindow {
         onSyncDialogRequested: syncDialog.open()
         onSyncNowRequested: win.syncNotes()
         onHistoryRequested: function(path) { win.openHistory(path); }
+        onSettingsRequested: settingsDialog.open()
         onSearchResultRequested: function(path, position, length) { win.openSearchResult(path, position, length); }
         onEditTemplateRequested: function(path) { win.openNote(vault.urlForPath(path)); }
         onAuthorRequested: nameDialog.askForName("Author name", noteTemplates.author, "Save",
@@ -1021,6 +1119,24 @@ ApplicationWindow {
             close();
             win.openNote(vault.urlForPath(path));
         }
+        onClosed: editor.forceActiveFocus()
+    }
+
+    SettingsDialog {
+        id: settingsDialog
+        darkMode: win.darkMode
+        textScale: win.textScale
+        textColor: win.textColor
+        mutedColor: win.mutedColor
+        accentColor: backend.themeAccent
+        raisedColor: win.raisedColor
+        fieldColor: win.fieldColor
+        borderColor: win.borderColor
+        containerWidth: win.width
+        containerHeight: win.height
+        onSyncDialogRequested: { close(); syncDialog.open(); }
+        onCitationsRequested: { close(); citationsDialog.open(); }
+        onTemplatesRequested: win.runCommand("templates")
         onClosed: editor.forceActiveFocus()
     }
 
@@ -1117,6 +1233,33 @@ ApplicationWindow {
         borderColor: win.borderColor
         containerWidth: win.width
         containerHeight: win.height
+        onClosed: editor.forceActiveFocus()
+    }
+
+    NotePicker {
+        id: commandPalette
+        objectName: "commandPalette"
+        hasField: true
+        showSubtitle: false
+        sourceItems: []
+        placeholder: "Run a command…"
+        showShortcut: true
+        emptyText: "No matching command."
+        darkMode: win.darkMode
+        textScale: win.textScale
+        textColor: win.textColor
+        mutedColor: win.mutedColor
+        accentColor: backend.themeAccent
+        selectionFill: win.selectionFill
+        selectionTextColor: win.selectionTextColor
+        raisedColor: win.raisedColor
+        borderColor: win.borderColor
+        x: Math.round((win.width - width) / 2)
+        y: Math.round(win.height * 0.15)
+        onPicked: function(command, typed) {
+            if (command)
+                Qt.callLater(win.runCommand, command.id);
+        }
         onClosed: editor.forceActiveFocus()
     }
 
@@ -1989,7 +2132,7 @@ ApplicationWindow {
 
             background: Rectangle {
                 radius: 9
-                color: win.darkMode ? "#22221f" : "#fffef2"
+                color: win.omaPalette ? win.raisedColor : win.darkMode ? "#22221f" : "#fffef2"
             }
 
             RowLayout {
@@ -2117,7 +2260,7 @@ ApplicationWindow {
                 Rectangle {
                     Layout.preferredWidth: 1
                     Layout.preferredHeight: 34
-                    color: win.darkMode ? "#6f6f62" : "#d5d56e"
+                    color: win.omaPalette ? win.borderColor : win.darkMode ? "#6f6f62" : "#d5d56e"
                 }
 
                 SearchIconButton {

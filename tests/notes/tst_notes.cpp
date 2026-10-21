@@ -1614,6 +1614,93 @@ private slots:
         QCOMPARE(editor->property("text").toString(), QStringLiteral("version one\n"));
     }
 
+
+    // ── Command palette and settings ────────────────────────────────────────
+
+    void commandPaletteRunsCommands() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("A.md")), "# A\n");
+        Backend backend;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        vault.setSidebarVisible(true);
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+        QVariant list;
+        QMetaObject::invokeMethod(window.get(), "commandList", Q_RETURN_ARG(QVariant, list));
+        QStringList ids;
+        for (const QVariant &command : list.toList())
+            ids << command.toMap().value(QStringLiteral("id")).toString();
+        QVERIFY(ids.contains(QStringLiteral("newNote")));
+        QVERIFY(ids.contains(QStringLiteral("settings")));
+        // Nothing open: no note commands, and no history without git.
+        QVERIFY(!ids.contains(QStringLiteral("export")));
+        QVERIFY(!ids.contains(QStringLiteral("history")));
+        QMetaObject::invokeMethod(window.get(), "openNote",
+                                  Q_ARG(QVariant, QUrl::fromLocalFile(dir.filePath(QStringLiteral("A.md")))));
+        QMetaObject::invokeMethod(window.get(), "commandList", Q_RETURN_ARG(QVariant, list));
+        bool hasExport = false;
+        for (const QVariant &command : list.toList())
+            hasExport = hasExport || command.toMap().value(QStringLiteral("id")) == QStringLiteral("export");
+        QVERIFY(hasExport);
+
+        // The palette filters them by name.
+        auto *palette = window->findChild<QObject *>(QStringLiteral("commandPalette"));
+        palette->setProperty("sourceItems", list);
+        palette->setProperty("query", QStringLiteral("sidebar"));
+        QCOMPARE(palette->property("results").toList().first().toMap().value(QStringLiteral("id")).toString(),
+                 QStringLiteral("sidebar"));
+
+        QMetaObject::invokeMethod(window.get(), "runCommand", Q_ARG(QVariant, QStringLiteral("sidebar")));
+        QVERIFY(!vault.sidebarVisible());
+        QMetaObject::invokeMethod(window.get(), "runCommand", Q_ARG(QVariant, QStringLiteral("palette")));
+        QVERIFY(backend.omaPalette());
+        QMetaObject::invokeMethod(window.get(), "runCommand", Q_ARG(QVariant, QStringLiteral("settings")));
+        QVERIFY(window->findChild<QObject *>(QStringLiteral("settingsDialog"))->property("opened").toBool()
+                || window->findChild<QObject *>(QStringLiteral("settingsDialog"))->property("visible").toBool());
+    }
+
+    void exportsGoToTheExportsFolderWhenChosen() {
+        QTemporaryDir dir;
+        const QString root = QFileInfo(dir.path()).canonicalFilePath();
+        Exporter exporter;
+        exporter.setRoot(root);
+        exporter.ensureDefaults();
+        const QString pdf = exporter.profilesFolder() + QStringLiteral("/PDF.yaml");
+        exporter.setExportLocation(QStringLiteral("beside"));
+        QCOMPARE(exporter.defaultOutputPath(root + QStringLiteral("/Sub/N.md"), pdf), root + QStringLiteral("/Sub/N.pdf"));
+        exporter.setExportLocation(QStringLiteral("folder"));
+        QCOMPARE(exporter.exportLocation(), QStringLiteral("folder"));
+        QCOMPARE(exporter.defaultOutputPath(root + QStringLiteral("/Sub/N.md"), pdf), root + QStringLiteral("/Exports/N.pdf"));
+        QCOMPARE(exporter.defaultFolderOutputPath(root + QStringLiteral("/Sub"), pdf), root + QStringLiteral("/Exports/Sub.pdf"));
+        // Kept out of git sync, once.
+        exporter.setExportLocation(QStringLiteral("beside"));
+        exporter.setExportLocation(QStringLiteral("folder"));
+        QCOMPARE(readFile(root + QStringLiteral("/.gitignore")).count(QStringLiteral("/Exports/")), 1);
+        exporter.setExportLocation(QStringLiteral("beside"));
+    }
+
+    void autoCreatingLinkedNotesCanBeTurnedOff() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("Hub.md")), "# Hub\n");
+        Backend backend;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        vault.setAutoCreateLinks(false);
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+        QMetaObject::invokeMethod(window.get(), "openNote",
+                                  Q_ARG(QVariant, QUrl::fromLocalFile(dir.filePath(QStringLiteral("Hub.md")))));
+        auto *editor = window->findChild<QObject *>(QStringLiteral("sourceEditor"));
+        editor->setProperty("text", QStringLiteral("[[Elsewhere]] text"));
+        editor->setProperty("cursorPosition", 0);
+        backend.save();
+        QVERIFY(!QFile::exists(dir.filePath(QStringLiteral("Elsewhere.md"))));
+        vault.setAutoCreateLinks(true);
+        Vault again;
+        QVERIFY(again.autoCreateLinks());
+    }
+
     // ── Oma palette ─────────────────────────────────────────────────────────
 
     void omaPaletteSetsTheSurround() {

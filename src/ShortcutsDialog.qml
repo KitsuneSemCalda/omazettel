@@ -11,6 +11,8 @@ Dialog {
     property color strongTextColor: darkMode ? "#eeeeee" : "#222324"
     property color activeButtonColor: "#428bca"
     property real textScale: 1
+    // OmaZettel: the Oma palette's surfaces when it is on.
+    readonly property bool omaPalette: typeof backend !== "undefined" && backend !== null && backend.omaPalette
     property int containerWidth: 1280
     property int containerHeight: 820
     readonly property string versionText: "OmaZettel " + Qt.application.version
@@ -25,6 +27,8 @@ Dialog {
         { key: "Ctrl+Shift+E", desc: "Export with pandoc" },
         { key: "Ctrl+Shift+F", desc: "Search All Notes" },
         { key: "Ctrl+Alt+S", desc: "Sync Now" },
+        { key: "Ctrl+Shift+P", desc: "Command Palette" },
+        { key: "Ctrl+,", desc: "Settings" },
         { key: "Ctrl+\\", desc: "Show or Hide Sidebar" },
         { key: "Ctrl+Shift+B", desc: "Show or Hide Backlinks & Tags" },
         { key: "Ctrl+Click / Ctrl+Enter", desc: "Follow Link" },
@@ -68,8 +72,8 @@ Dialog {
     Overlay.modal: Rectangle { color: Qt.rgba(0, 0, 0, 0.65) }
 
     background: Rectangle {
-        color: root.darkMode ? "#181818" : "#fbfbfb"
-        border.color: root.darkMode ? "#343434" : "#d8d8d8"
+        color: root.omaPalette ? "#171E2A" : root.darkMode ? "#181818" : "#fbfbfb"
+        border.color: root.omaPalette ? "#293241" : root.darkMode ? "#343434" : "#d8d8d8"
         border.width: 1
         radius: 0
     }

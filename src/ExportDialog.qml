@@ -222,14 +222,14 @@ Dialog {
         onAccepted: root.outputPath = vault.pathForUrl(selectedFile)
     }
 
-    Menu {
+    ThemedMenu {
         id: newTemplateMenu
-        MenuItem { text: "LaTeX template (.tex, for PDF)"; onTriggered: root.newTemplate("latex", { label: "LaTeX template", name: "Article" }) }
-        MenuItem { text: "HTML template (.html)"; onTriggered: root.newTemplate("html", { label: "HTML template", name: "Page" }) }
-        MenuSeparator {}
-        MenuItem { text: "Word reference document (.docx)"; onTriggered: root.newTemplate("docx", { label: "Word reference document", name: "Reference" }) }
-        MenuItem { text: "OpenDocument reference (.odt)"; onTriggered: root.newTemplate("odt", { label: "OpenDocument reference", name: "Reference" }) }
-        MenuItem { text: "PowerPoint reference (.pptx)"; onTriggered: root.newTemplate("pptx", { label: "PowerPoint reference", name: "Slides" }) }
+        ThemedMenuItem { text: "LaTeX template (.tex, for PDF)"; onTriggered: root.newTemplate("latex", { label: "LaTeX template", name: "Article" }) }
+        ThemedMenuItem { text: "HTML template (.html)"; onTriggered: root.newTemplate("html", { label: "HTML template", name: "Page" }) }
+        ThemedMenuSeparator {}
+        ThemedMenuItem { text: "Word reference document (.docx)"; onTriggered: root.newTemplate("docx", { label: "Word reference document", name: "Reference" }) }
+        ThemedMenuItem { text: "OpenDocument reference (.odt)"; onTriggered: root.newTemplate("odt", { label: "OpenDocument reference", name: "Reference" }) }
+        ThemedMenuItem { text: "PowerPoint reference (.pptx)"; onTriggered: root.newTemplate("pptx", { label: "PowerPoint reference", name: "Slides" }) }
     }
 
     modal: true

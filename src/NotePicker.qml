@@ -25,6 +25,10 @@ Popup {
     // {name, title, folder} (citations).
     property var sourceItems: null
     property bool showSubtitle: hasField
+    property bool showShortcut: false
+    property string placeholder: "Go to note… (Enter on no match creates it)"
+    // Text shown when nothing matches; the note wording when empty.
+    property string emptyText: ""
     readonly property var results: filter(sourceItems !== null ? sourceItems
                                            : (noteIndex.revision >= 0 ? noteIndex.notes() : []), query)
     readonly property var currentResult: currentIndex >= 0 && currentIndex < results.length
@@ -165,7 +169,7 @@ Popup {
                 anchors.verticalCenter: parent.verticalCenter
                 x: root.scaled(10)
                 visible: field.text.length === 0
-                text: "Go to note… (Enter on no match creates it)"
+                text: root.placeholder
                 color: root.mutedColor
                 font.family: "IBM Plex Mono"
                 font.pixelSize: root.scaled(15)
@@ -182,8 +186,9 @@ Popup {
             visible: root.results.length === 0
             width: parent.width
             padding: root.scaled(8)
-            text: root.query.trim().length > 0 ? "No note named “" + root.query.trim() + "”. Enter creates it."
-                                               : "No notes yet."
+            text: root.emptyText.length > 0 ? root.emptyText
+                  : root.query.trim().length > 0 ? "No note named “" + root.query.trim() + "”. Enter creates it."
+                  : "No notes yet."
             wrapMode: Text.Wrap
             color: root.mutedColor
             font.family: "IBM Plex Mono"
@@ -231,6 +236,17 @@ Popup {
                         font.family: "IBM Plex Mono"
                         font.pixelSize: root.scaled(10)
                     }
+                }
+                // Commands show their shortcut on the right.
+                Label {
+                    anchors.right: parent.right
+                    anchors.rightMargin: root.scaled(10)
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: root.showShortcut && modelData.title.length > 0
+                    text: modelData.title
+                    color: root.mutedColor
+                    font.family: "IBM Plex Mono"
+                    font.pixelSize: root.scaled(11)
                 }
                 MouseArea {
                     anchors.fill: parent

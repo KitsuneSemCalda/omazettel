@@ -29,6 +29,10 @@ class Exporter : public QObject {
     Q_PROPERTY(QString templatesFolder READ templatesFolder NOTIFY changed)
     Q_PROPERTY(QString lastProfile READ lastProfile WRITE setLastProfile NOTIFY changed)
     Q_PROPERTY(int revision READ revision NOTIFY changed)
+    // Where exports go by default: "beside" the note (or in the folder, for
+    // a folder export) or "folder", the notes folder's Exports folder, which
+    // is kept out of git sync.
+    Q_PROPERTY(QString exportLocation READ exportLocation WRITE setExportLocation NOTIFY changed)
 
 public:
     explicit Exporter(QObject *parent = nullptr);
@@ -41,6 +45,9 @@ public:
     QString lastProfile() const;
     void setLastProfile(const QString &path);
     int revision() const { return m_revision; }
+    QString exportLocation() const;
+    void setExportLocation(const QString &location);
+    QString exportsFolder() const;
 
     Q_INVOKABLE void setRoot(const QString &notesRoot);
     // Writes the starter profiles if the export folder does not exist.

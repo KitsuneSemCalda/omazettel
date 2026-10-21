@@ -23,6 +23,8 @@ class Vault : public QObject {
     Q_PROPERTY(int sidebarWidth READ sidebarWidth WRITE setSidebarWidth NOTIFY sidebarWidthChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY lastErrorChanged)
     Q_PROPERTY(bool panelVisible READ panelVisible WRITE setPanelVisible NOTIFY panelVisibleChanged)
+    // Whether saving a note makes the notes its [[links]] name.
+    Q_PROPERTY(bool autoCreateLinks READ autoCreateLinks WRITE setAutoCreateLinks NOTIFY autoCreateLinksChanged)
 
 public:
     explicit Vault(QObject *parent = nullptr);
@@ -39,6 +41,8 @@ public:
     void setSidebarWidth(int width);
     QString lastError() const { return m_lastError; }
     bool panelVisible() const { return m_panelVisible; }
+    bool autoCreateLinks() const { return m_autoCreateLinks; }
+    void setAutoCreateLinks(bool enabled);
     void setPanelVisible(bool visible);
 
     // Opening and closing the notes folder.
@@ -91,6 +95,7 @@ signals:
     void sidebarWidthChanged();
     void lastErrorChanged();
     void panelVisibleChanged();
+    void autoCreateLinksChanged();
     // Notes or folders were created, renamed, moved or trashed.
     void contentsChanged();
 
@@ -106,4 +111,5 @@ private:
     int m_sidebarWidth = 260;
     QString m_lastError;
     bool m_panelVisible = true;
+    bool m_autoCreateLinks = true;
 };

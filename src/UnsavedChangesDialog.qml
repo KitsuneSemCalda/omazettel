@@ -12,6 +12,8 @@ Dialog {
     property int containerWidth: 420
     property int containerHeight: 320
     property real textScale: 1
+    // OmaZettel: the Oma palette's surfaces when it is on.
+    readonly property bool omaPalette: typeof backend !== "undefined" && backend !== null && backend.omaPalette
 
     signal saveRequested()
     signal discardRequested()
@@ -47,8 +49,8 @@ Dialog {
     }
 
     background: Rectangle {
-        color: root.darkMode ? "#1a1a1a" : "#ffffff"
-        border.color: root.darkMode ? "#343434" : "#d8d8d8"
+        color: root.omaPalette ? "#171E2A" : root.darkMode ? "#1a1a1a" : "#ffffff"
+        border.color: root.omaPalette ? "#293241" : root.darkMode ? "#343434" : "#d8d8d8"
         radius: 0
     }
 
