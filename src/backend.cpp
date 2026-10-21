@@ -9,6 +9,7 @@
 #include <QFileInfo>
 #include <QFont>
 #include <QFontDatabase>
+#include <QFontInfo>
 #include <QGuiApplication>
 #include <QMimeData>
 #include <QProcess>
@@ -741,8 +742,23 @@ void Backend::saveWindowGeometry(int x, int y, int width, int height, bool maxim
     settings.setValue(QStringLiteral("window/maximized"), maximized);
 }
 
+// OmaZettel: the desktop's monospace font (on Omarchy, the one
+// `omarchy font set` chose), else JetBrains Mono, else Qt's fixed font.
 QString Backend::defaultEditorFont() {
-    return QStringLiteral("IBM Plex Mono");
+    static const QString family = [] {
+        QFont monospace(QStringLiteral("monospace"));
+        monospace.setStyleHint(QFont::Monospace);
+        const QString resolved = QFontInfo(monospace).family();
+        if (!resolved.isEmpty() && resolved.compare(QStringLiteral("monospace"), Qt::CaseInsensitive) != 0
+                && QFontDatabase::hasFamily(resolved))
+            return resolved;
+        for (const QString &candidate : {QStringLiteral("JetBrainsMono Nerd Font"), QStringLiteral("JetBrains Mono")}) {
+            if (QFontDatabase::hasFamily(candidate))
+                return candidate;
+        }
+        return QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
+    }();
+    return family;
 }
 
 void Backend::setEditorFont(const QString &family) {

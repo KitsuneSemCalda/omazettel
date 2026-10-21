@@ -73,7 +73,7 @@ Rectangle {
             Label {
                 text: "Outline"
                 color: root.textColor
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(13)
                 font.bold: true
             }
@@ -84,7 +84,7 @@ Rectangle {
                 wrapMode: Text.Wrap
                 text: "No headings. Lines starting with # appear here."
                 color: root.mutedColor
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(11)
             }
 
@@ -117,7 +117,7 @@ Rectangle {
                             textFormat: Text.PlainText
                             elide: Text.ElideRight
                             color: index === root.currentHeading ? root.accentColor : root.textColor
-                            font.family: "IBM Plex Mono"
+                            font.family: Qt.application.font.family
                             font.pixelSize: root.scaled(modelData.level <= parent.minLevel ? 12 : 11)
                             font.bold: modelData.level <= parent.minLevel
                         }
@@ -138,7 +138,7 @@ Rectangle {
             Label {
                 text: "Tags"
                 color: root.textColor
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(13)
                 font.bold: true
             }
@@ -150,7 +150,7 @@ Rectangle {
                 text: root.currentPath.length > 0 ? "No tags. Type #tag in the note to add one."
                                                   : "Open a note to see its tags."
                 color: root.mutedColor
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(11)
             }
 
@@ -172,7 +172,7 @@ Rectangle {
                             anchors.centerIn: parent
                             text: "#" + parent.modelData
                             color: root.accentColor
-                            font.family: "IBM Plex Mono"
+                            font.family: Qt.application.font.family
                             font.pixelSize: root.scaled(11)
                         }
                         MouseArea {
@@ -192,7 +192,7 @@ Rectangle {
             Label {
                 text: "Backlinks" + (root.backlinks.length > 0 ? "  " + root.backlinks.length : "")
                 color: root.textColor
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(13)
                 font.bold: true
             }
@@ -204,7 +204,7 @@ Rectangle {
                 text: root.currentPath.length > 0 ? "No notes link here yet."
                                                   : "Open a note to see what links to it."
                 color: root.mutedColor
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(11)
             }
 
@@ -229,7 +229,7 @@ Rectangle {
                             text: modelData.title
                             elide: Text.ElideRight
                             color: root.accentColor
-                            font.family: "IBM Plex Mono"
+                            font.family: Qt.application.font.family
                             font.pixelSize: root.scaled(12)
                         }
                         Label {
@@ -240,7 +240,7 @@ Rectangle {
                             maximumLineCount: 3
                             elide: Text.ElideRight
                             color: root.mutedColor
-                            font.family: "IBM Plex Mono"
+                            font.family: Qt.application.font.family
                             font.pixelSize: root.scaled(11)
                         }
                     }

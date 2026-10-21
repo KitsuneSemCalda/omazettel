@@ -14,13 +14,14 @@ OmaZettel is an independent fork of [Omawrite](https://github.com/omacom/omawrit
 by David Heinemeier Hansson, extended into a notes system. It is not made or
 endorsed by Omacom or the Omarchy project.
 
-> **Status: 0.6.0, early.** Everything below works and is covered by tests, but
+> **Status: 0.6.1, early.** Everything below works and is covered by tests, but
 > OmaZettel is young: expect rough edges, and keep your notes folder in git or
 > another backup. Bug reports and ideas are welcome in the issues.
 
 ## Contents
 
 - [Features](#features)
+- [Requirements](#requirements)
 - [Install](#install)
 - [Getting started](#getting-started)
 - [Writing](#writing)
@@ -67,10 +68,48 @@ endorsed by Omacom or the Omarchy project.
 - From Omawrite: a calm editor that hides Markdown markers away from the caret,
   auto-save, crash recovery, and warnings when a file changes underneath you.
 
+## Requirements
+
+OmaZettel is made for **[Omarchy](https://omarchy.org)**, which already has
+everything it needs to run. On another **Arch Linux** desktop, install the
+packages below. (Other distributions should work from source with the same
+pieces, but are untested.)
+
+**To run** (required):
+
+| Package | Why |
+| --- | --- |
+| `qt6-base` 6.6 or newer | Qt, the toolkit OmaZettel is built with |
+| `qt6-declarative` 6.6 or newer | Qt Quick, for the interface |
+| `xdg-desktop-portal` and a backend (`xdg-desktop-portal-hyprland` or `-gtk`) | File and folder pickers |
+| A monospace font | The editor and interface use your desktop's monospace font (`fc-match monospace`); on Omarchy that is JetBrains Mono, set with `omarchy font set` |
+
+**To build** (required, from the source): `base-devel` (for `gcc`, `make`
+and `makepkg`) and `git`.
+
+```sh
+sudo pacman -S --needed base-devel git qt6-base qt6-declarative xdg-desktop-portal
+```
+
+**For some features** (optional, install what you use):
+
+| Feature | Package | Notes |
+| --- | --- | --- |
+| Export (PDF, Word, OpenDocument, HTML, …) | `pandoc-cli` | Without it, everything else works; Export says pandoc is missing |
+| PDF export | `texlive-xetex` (recommended) or `texlive-latex` | XeLaTeX handles any font and script; pdflatex covers Western text |
+| Version history and sync | `git` | Already installed if you built from source |
+| Creating a private GitHub repository to sync with | `github-cli` | Then run `gh auth login` and `gh auth setup-git` once |
+| Editing Word or OpenDocument export styles | `libreoffice-fresh` | Opens reference documents |
+| Citations | none | Use a `.bib` or CSL JSON file, for example from Zotero with Better BibTeX |
+
+```sh
+sudo pacman -S --needed pandoc-cli texlive-xetex github-cli
+```
+
 ## Install
 
-OmaZettel is built for Omarchy and Arch Linux. Clone it and run the installer,
-which builds the app and installs it as a package with pacman (it asks for your
+Clone OmaZettel and run the installer. It builds the app and installs it as a
+package with pacman, so it appears in the app launcher (it asks for your
 password):
 
 ```sh
@@ -78,18 +117,6 @@ git clone https://github.com/mcsmith3/omazettel.git
 cd omazettel
 ./bin/install
 ```
-
-It needs `qt6-base`, `qt6-declarative` and `xdg-desktop-portal`, which Omarchy
-already has, plus `gcc` and `make` to build. Some features use other programs,
-installed only if you want them:
-
-| For | Install |
-| --- | --- |
-| Export to PDF, Word, HTML, … | `sudo pacman -S pandoc-cli` |
-| PDF export (any font, any language) | `sudo pacman -S texlive-xetex` (or `texlive-latex` for pdflatex) |
-| Version history and sync | `sudo pacman -S git` |
-| Creating a GitHub repository to sync with | `sudo pacman -S github-cli`, then `gh auth login` and `gh auth setup-git` |
-| Editing Word and OpenDocument styles | `sudo pacman -S libreoffice-fresh` |
 
 To update later, `git pull` and run `./bin/install` again. To remove it,
 `sudo pacman -R omazettel`; your notes are untouched.
@@ -121,9 +148,11 @@ xdg-mime default omazettel.desktop text/markdown text/x-markdown
   text, and stops auto-saving until you choose.
 - Ctrl+B, Ctrl+I and Ctrl+Shift+X toggle bold, italic and strikethrough; Ctrl+K
   inserts a link; Tab and Shift+Tab indent list items; Enter continues lists.
-- The **A** button in the footer picks the writing font (IBM Plex Mono by
-  default). Text follows `omarchy display text size`, and Ctrl+= / Ctrl+- /
-  Ctrl+scroll change it on top of that.
+- The editor uses your desktop's monospace font, so changing it with
+  `omarchy font set` changes OmaZettel too (at its next start). The **A**
+  button in the footer picks a different font just for writing. Text follows
+  `omarchy display text size`, and Ctrl+= / Ctrl+- / Ctrl+scroll change it on
+  top of that.
 
 ## Links, backlinks and tags
 
@@ -370,7 +399,8 @@ terminal.
 
 ## Building from source
 
-You need Qt 6 (`qt6-base`, `qt6-declarative`), a C++17 compiler and `make`.
+You need the [requirements](#requirements) above: Qt 6.6 or newer
+(`qt6-base`, `qt6-declarative`), a C++17 compiler and `make`.
 
 ```sh
 ./bin/build            # builds ./build/omazettel
@@ -410,7 +440,5 @@ Heinemeier Hansson, under the MIT license
 ([`LICENSES/MIT-omawrite.txt`](LICENSES/MIT-omawrite.txt)). Feature ideas
 inspired by [Zettlr](https://www.zettlr.com), [Obsidian](https://obsidian.md)
 and [Joplin](https://joplinapp.org). The Oma palette comes from
-[OmaShow](https://github.com/28allday/omashow). The bundled
-IBM Plex Mono font is under the SIL Open Font License 1.1
-([`fonts/OFL.txt`](fonts/OFL.txt)). See
+[OmaShow](https://github.com/28allday/omashow). See
 [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) for details.

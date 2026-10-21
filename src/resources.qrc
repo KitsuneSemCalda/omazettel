@@ -25,9 +25,5 @@
         <file alias="ThemedMenu.qml">ThemedMenu.qml</file>
         <file alias="ThemedMenuItem.qml">ThemedMenuItem.qml</file>
         <file alias="ThemedMenuSeparator.qml">ThemedMenuSeparator.qml</file>
-        <file alias="fonts/IBMPlexMono-Regular.ttf">../fonts/IBMPlexMono-Regular.ttf</file>
-        <file alias="fonts/IBMPlexMono-Italic.ttf">../fonts/IBMPlexMono-Italic.ttf</file>
-        <file alias="fonts/IBMPlexMono-Bold.ttf">../fonts/IBMPlexMono-Bold.ttf</file>
-        <file alias="fonts/IBMPlexMono-BoldItalic.ttf">../fonts/IBMPlexMono-BoldItalic.ttf</file>
     </qresource>
 </RCC>

@@ -62,14 +62,14 @@ Dialog {
         color: root.mutedColor
         wrapMode: Text.Wrap
         Layout.fillWidth: true
-        font.family: "IBM Plex Mono"
+        font.family: Qt.application.font.family
         font.pixelSize: root.scaled(11)
     }
 
     component Heading: Label {
         color: root.textColor
         Layout.topMargin: root.scaled(8)
-        font.family: "IBM Plex Mono"
+        font.family: Qt.application.font.family
         font.pixelSize: root.scaled(13)
         font.bold: true
     }
@@ -78,7 +78,7 @@ Dialog {
         id: action
         signal clicked()
         color: !enabled ? root.mutedColor : (actionMouse.containsMouse ? root.textColor : root.accentColor)
-        font.family: "IBM Plex Mono"
+        font.family: Qt.application.font.family
         font.pixelSize: root.scaled(12)
         MouseArea {
             id: actionMouse
@@ -105,7 +105,7 @@ Dialog {
             clip: true
             selectByMouse: true
             color: root.textColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: root.scaled(12)
         }
     }
@@ -124,7 +124,7 @@ Dialog {
             Label {
                 text: "Sync & history"
                 color: root.textColor
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(16)
                 font.bold: true
             }
@@ -165,7 +165,7 @@ Dialog {
                     text: vault.prettyPath(sync.repoRoot) + (sync.branch.length > 0 ? "  (" + sync.branch + ")" : "")
                     elide: Text.ElideMiddle
                     color: root.textColor
-                    font.family: "IBM Plex Mono"
+                    font.family: Qt.application.font.family
                     font.pixelSize: root.scaled(12)
                 }
                 Small { text: "Status"; Layout.fillWidth: false }
@@ -184,7 +184,7 @@ Dialog {
                         return base + (when.length > 0 ? " · synced " + when : "");
                     }
                     color: sync.state === "error" || sync.state === "conflict" ? root.errorColor : root.textColor
-                    font.family: "IBM Plex Mono"
+                    font.family: Qt.application.font.family
                     font.pixelSize: root.scaled(12)
                 }
             }
@@ -258,14 +258,14 @@ Dialog {
                 Label {
                     text: "Sync when OmaZettel starts and every"
                     color: root.textColor
-                    font.family: "IBM Plex Mono"
+                    font.family: Qt.application.font.family
                     font.pixelSize: root.scaled(12)
                 }
                 Action { text: "−"; onClicked: sync.intervalMinutes = Math.max(1, sync.intervalMinutes - (sync.intervalMinutes > 10 ? 5 : 1)) }
                 Label {
                     text: sync.intervalMinutes + " min"
                     color: root.textColor
-                    font.family: "IBM Plex Mono"
+                    font.family: Qt.application.font.family
                     font.pixelSize: root.scaled(12)
                 }
                 Action { text: "+"; onClicked: sync.intervalMinutes = sync.intervalMinutes + (sync.intervalMinutes >= 10 ? 5 : 1) }
@@ -292,7 +292,7 @@ Dialog {
                         text: vault.prettyPath(modelData).replace(vault.prettyPath(vault.rootPath) + "/", "")
                         elide: Text.ElideMiddle
                         color: root.textColor
-                        font.family: "IBM Plex Mono"
+                        font.family: Qt.application.font.family
                         font.pixelSize: root.scaled(12)
                     }
                     Action { text: "Compare…"; onClicked: root.compareRequested(modelData) }
@@ -324,7 +324,7 @@ Dialog {
                         text: modelData.copy.substring(modelData.copy.lastIndexOf("/") + 1) + "  (" + modelData.tool + ")"
                         elide: Text.ElideMiddle
                         color: root.textColor
-                        font.family: "IBM Plex Mono"
+                        font.family: Qt.application.font.family
                         font.pixelSize: root.scaled(12)
                     }
                     Action { text: "Compare…"; onClicked: root.compareRequested(modelData.copy) }

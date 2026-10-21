@@ -2066,7 +2066,7 @@ ApplicationWindow {
             Label {
                 text: backend.status
                 color: win.mutedColor
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: win.scaledSize(11)
                 visible: text !== ""
                 elide: Text.ElideRight
@@ -2088,7 +2088,7 @@ ApplicationWindow {
             maximumHeight: Math.min(win.scaledSize(440), win.height - 80)
             fonts: backend.availableFonts
             currentFont: backend.editorFont
-            defaultFont: "IBM Plex Mono"
+            defaultFont: Qt.application.font.family
             darkMode: win.darkMode
             textScale: win.textScale
             textColor: win.textColor
@@ -2106,7 +2106,7 @@ ApplicationWindow {
             text: backend.wordCount + (backend.wordCount === 1 ? " Word" : " Words")
             color: win.mutedColor
             opacity: 0.75
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: win.scaledSize(11)
         }
 

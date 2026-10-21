@@ -60,7 +60,7 @@ Dialog {
         Label {
             text: "Unsaved changes"
             color: root.strongTextColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: Math.round(16 * root.textScale)
             font.bold: true
         }
@@ -70,7 +70,7 @@ Dialog {
             text: "Save changes to " + root.fileName + " before closing?"
             color: root.textColor
             wrapMode: Text.Wrap
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: Math.round(13 * root.textScale)
         }
     }

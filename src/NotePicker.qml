@@ -154,7 +154,7 @@ Popup {
                 color: root.textColor
                 selectionColor: root.selectionFill
                 selectedTextColor: root.selectionTextColor
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(15)
                 Keys.onPressed: function(event) {
                     if (event.key === Qt.Key_Down) { root.move(1); event.accepted = true; }
@@ -171,7 +171,7 @@ Popup {
                 visible: field.text.length === 0
                 text: root.placeholder
                 color: root.mutedColor
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(15)
             }
             Rectangle {
@@ -191,7 +191,7 @@ Popup {
                   : "No notes yet."
             wrapMode: Text.Wrap
             color: root.mutedColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: root.scaled(12)
         }
 
@@ -222,7 +222,7 @@ Popup {
                         text: modelData.name
                         elide: Text.ElideRight
                         color: index === root.currentIndex ? root.accentColor : root.textColor
-                        font.family: "IBM Plex Mono"
+                        font.family: Qt.application.font.family
                         font.pixelSize: root.scaled(13)
                     }
                     Label {
@@ -233,7 +233,7 @@ Popup {
                                  ? (modelData.title !== modelData.name ? "  ·  " : "") + modelData.folder : "")
                         elide: Text.ElideRight
                         color: root.mutedColor
-                        font.family: "IBM Plex Mono"
+                        font.family: Qt.application.font.family
                         font.pixelSize: root.scaled(10)
                     }
                 }
@@ -245,7 +245,7 @@ Popup {
                     visible: root.showShortcut && modelData.title.length > 0
                     text: modelData.title
                     color: root.mutedColor
-                    font.family: "IBM Plex Mono"
+                    font.family: Qt.application.font.family
                     font.pixelSize: root.scaled(11)
                 }
                 MouseArea {

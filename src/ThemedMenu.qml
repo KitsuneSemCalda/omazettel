@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 
-// A menu in OmaZettel's look: the palette's raised surface, IBM Plex Mono,
+// A menu in OmaZettel's look: the palette's raised surface, the app font,
 // wide enough for its items.
 Menu {
     id: menu

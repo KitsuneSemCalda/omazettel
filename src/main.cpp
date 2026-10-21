@@ -22,7 +22,7 @@
 #include "sync.h"
 #include "vault.h"
 
-#define OMAZETTEL_VERSION "0.6.0"
+#define OMAZETTEL_VERSION "0.6.1"
 
 int main(int argc, char *argv[]) {
     // Answered before the application exists, so they need no display.
@@ -43,10 +43,6 @@ int main(int argc, char *argv[]) {
     app.setDesktopFileName(QStringLiteral("omazettel"));
     app.setWindowIcon(QIcon::fromTheme(QStringLiteral("omazettel")));
 
-    QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/IBMPlexMono-Regular.ttf"));
-    QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/IBMPlexMono-Italic.ttf"));
-    QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/IBMPlexMono-Bold.ttf"));
-    QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/IBMPlexMono-BoldItalic.ttf"));
     app.setOrganizationName(QStringLiteral("omazettel"));
 
     QQuickStyle::setStyle(QStringLiteral("Material"));
@@ -61,7 +57,8 @@ int main(int argc, char *argv[]) {
 
     // Carry the text scale into the default font, so the chrome that inherits
     // it (dialog titles, buttons) grows along with the writing area.
-    const QFont interfaceFont(QStringLiteral("IBM Plex Mono"));
+    // OmaZettel: the interface uses the desktop's monospace font too.
+    const QFont interfaceFont(Backend::defaultEditorFont());
     const qreal basePointSize = interfaceFont.pointSizeF() > 0
         ? interfaceFont.pointSizeF()
         : app.font().pointSizeF();

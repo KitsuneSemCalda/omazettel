@@ -250,7 +250,7 @@ Dialog {
 
     component SmallLabel: Label {
         color: root.mutedColor
-        font.family: "IBM Plex Mono"
+        font.family: Qt.application.font.family
         font.pixelSize: root.scaled(11)
     }
 
@@ -258,7 +258,7 @@ Dialog {
         id: textButton
         signal clicked()
         color: buttonMouse.containsMouse ? root.textColor : root.accentColor
-        font.family: "IBM Plex Mono"
+        font.family: Qt.application.font.family
         font.pixelSize: root.scaled(12)
         MouseArea {
             id: buttonMouse
@@ -288,7 +288,7 @@ Dialog {
                 color: root.textColor
                 elide: Text.ElideRight
                 Layout.fillWidth: true
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(16)
                 font.bold: true
             }
@@ -299,7 +299,7 @@ Dialog {
                 wrapMode: Text.Wrap
                 text: "pandoc is not installed. Install it with: sudo pacman -S pandoc-cli"
                 color: root.darkMode ? "#e8a0a0" : "#a03030"
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(12)
             }
 
@@ -326,7 +326,7 @@ Dialog {
                         text: root.folderTitle
                         onTextEdited: root.folderTitle = text
                         color: root.textColor
-                        font.family: "IBM Plex Mono"
+                        font.family: Qt.application.font.family
                         font.pixelSize: root.scaled(12)
                     }
                 }
@@ -345,7 +345,7 @@ Dialog {
                         text: root.folderAuthor
                         onTextEdited: root.folderAuthor = text
                         color: root.textColor
-                        font.family: "IBM Plex Mono"
+                        font.family: Qt.application.font.family
                         font.pixelSize: root.scaled(12)
                     }
                 }
@@ -391,7 +391,7 @@ Dialog {
                         text: modelData.name
                         elide: Text.ElideMiddle
                         color: modelData.included ? root.textColor : root.mutedColor
-                        font.family: "IBM Plex Mono"
+                        font.family: Qt.application.font.family
                         font.pixelSize: root.scaled(12)
                         MouseArea {
                             anchors.fill: parent
@@ -424,7 +424,7 @@ Dialog {
                         root.profileIndex = index;
                         root.updateOutput();
                     }
-                    font.family: "IBM Plex Mono"
+                    font.family: Qt.application.font.family
                     font.pixelSize: root.scaled(13)
                 }
                 TextButton {
@@ -468,7 +468,7 @@ Dialog {
                         color: root.textColor
                         selectionColor: root.selectionFill
                         selectedTextColor: root.selectionTextColor
-                        font.family: "IBM Plex Mono"
+                        font.family: Qt.application.font.family
                         font.pixelSize: root.scaled(12)
                         Keys.onReturnPressed: root.runExport()
                     }
@@ -490,7 +490,7 @@ Dialog {
                     text: "Templates and reference documents"
                     color: root.textColor
                     Layout.fillWidth: true
-                    font.family: "IBM Plex Mono"
+                    font.family: Qt.application.font.family
                     font.pixelSize: root.scaled(13)
                     font.bold: true
                 }
@@ -524,7 +524,7 @@ Dialog {
                         text: modelData.name
                         elide: Text.ElideRight
                         color: root.textColor
-                        font.family: "IBM Plex Mono"
+                        font.family: Qt.application.font.family
                         font.pixelSize: root.scaled(12)
                     }
                     SmallLabel { text: modelData.kind === "reference" ? "reference" : "template" }
@@ -549,7 +549,7 @@ Dialog {
                 Label {
                     text: "Exporting…"
                     color: root.textColor
-                    font.family: "IBM Plex Mono"
+                    font.family: Qt.application.font.family
                     font.pixelSize: root.scaled(12)
                 }
             }
@@ -565,7 +565,7 @@ Dialog {
                 text: root.message
                 color: root.resultState === "error" ? (root.darkMode ? "#e8a0a0" : "#a03030") : root.textColor
                 selectionColor: root.selectionFill
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(11)
             }
 

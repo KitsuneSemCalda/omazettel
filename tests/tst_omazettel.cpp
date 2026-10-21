@@ -213,22 +213,23 @@ private slots:
     }
 
     void keepsNotoFromCrowdingTheFontList() {
+        // OmaZettel: the default is the desktop's monospace font, listed first.
+        const QString defaultFont = Backend::defaultEditorFont();
         const QStringList fonts = Backend::selectableFontFamilies({
             QStringLiteral("Noto Sans Devanagari"), QStringLiteral("Liberation Serif"),
             QStringLiteral("Noto Serif"), QStringLiteral("Noto Sans Tamil UI"),
-            QStringLiteral("adwaita Sans"), QStringLiteral("IBM Plex Mono"),
+            QStringLiteral("adwaita Sans"), defaultFont,
             QStringLiteral("Noto Sans"), QStringLiteral("Noto Sans Mono"),
             QStringLiteral("Liberation Serif"), QStringLiteral("Monospace"),
             QStringLiteral("Standard Symbols PS"), QStringLiteral("D050000L"),
             QStringLiteral("Noto Color Emoji"), QStringLiteral("Nimbus Sans [UKWN]"),
             QStringLiteral("Nimbus Sans [URW ]")});
-        QCOMPARE(fonts, QStringList({QStringLiteral("IBM Plex Mono"),
-                                     QStringLiteral("adwaita Sans"),
-                                     QStringLiteral("Liberation Serif"),
-                                     QStringLiteral("Nimbus Sans"),
-                                     QStringLiteral("Noto Sans"),
-                                     QStringLiteral("Noto Sans Mono"),
-                                     QStringLiteral("Noto Serif")}));
+        QStringList expected{QStringLiteral("adwaita Sans"), QStringLiteral("Liberation Serif"),
+                             QStringLiteral("Nimbus Sans"), QStringLiteral("Noto Sans"),
+                             QStringLiteral("Noto Sans Mono"), QStringLiteral("Noto Serif")};
+        expected.removeAll(defaultFont);
+        expected.prepend(defaultFont);
+        QCOMPARE(fonts, expected);
     }
 
     void remembersEditorFont() {

@@ -53,7 +53,7 @@ Dialog {
             elide: Text.ElideMiddle
             Layout.fillWidth: true
             color: root.textColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: root.scaled(16)
             font.bold: true
         }
@@ -66,7 +66,7 @@ Dialog {
                     + (root.item.mineDeleted ? "\nThis device deleted the note." : "")
                     + (root.item.theirsDeleted ? "\nThe other side deleted the note." : "")
             color: root.mutedColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: root.scaled(11)
         }
 

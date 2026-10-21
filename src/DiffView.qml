@@ -33,7 +33,7 @@ ListView {
             x: root.scaled(6)
             text: modelData.kind === "added" ? "+" : modelData.kind === "removed" ? "−" : " "
             color: root.mutedColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: root.scaled(12)
         }
         Label {
@@ -44,7 +44,7 @@ ListView {
             textFormat: Text.PlainText
             wrapMode: Text.WrapAnywhere
             color: modelData.kind === "same" ? root.mutedColor : root.textColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: root.scaled(12)
         }
     }

@@ -29,7 +29,7 @@ Button {
         color: control.labelColor
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
-        font.family: "IBM Plex Mono"
+        font.family: Qt.application.font.family
         font.pixelSize: Math.round(12 * control.textScale)
     }
 

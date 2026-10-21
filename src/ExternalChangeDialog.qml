@@ -54,7 +54,7 @@ Dialog {
         Label {
             text: root.deleted ? "File removed" : "File changed"
             color: root.strongTextColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: Math.round(16 * root.textScale)
             font.bold: true
         }
@@ -68,7 +68,7 @@ Dialog {
                    : "This file changed outside OmaZettel.")
             color: root.textColor
             wrapMode: Text.Wrap
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: Math.round(13 * root.textScale)
         }
     }

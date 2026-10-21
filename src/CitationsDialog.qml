@@ -50,7 +50,7 @@ Dialog {
         color: root.mutedColor
         wrapMode: Text.Wrap
         Layout.fillWidth: true
-        font.family: "IBM Plex Mono"
+        font.family: Qt.application.font.family
         font.pixelSize: root.scaled(11)
     }
 
@@ -58,7 +58,7 @@ Dialog {
         id: action
         signal clicked()
         color: actionMouse.containsMouse ? root.textColor : root.accentColor
-        font.family: "IBM Plex Mono"
+        font.family: Qt.application.font.family
         font.pixelSize: root.scaled(12)
         MouseArea {
             id: actionMouse
@@ -76,7 +76,7 @@ Dialog {
         Label {
             text: "Citations"
             color: root.textColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: root.scaled(16)
             font.bold: true
         }
@@ -96,7 +96,7 @@ Dialog {
                 text: citations.bibliography.length > 0 ? vault.prettyPath(citations.bibliography) : "None"
                 elide: Text.ElideMiddle
                 color: root.textColor
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(12)
             }
             Action { text: "Choose…"; onClicked: bibliographyDialog.open() }
@@ -122,7 +122,7 @@ Dialog {
                 text: citations.style.length > 0 ? vault.prettyPath(citations.style) : "Chicago author-date (pandoc's default)"
                 elide: Text.ElideMiddle
                 color: root.textColor
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(12)
             }
             Action { text: "Choose…"; onClicked: styleDialog.open() }

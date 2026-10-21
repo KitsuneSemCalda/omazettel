@@ -88,7 +88,7 @@ Dialog {
             Layout.bottomMargin: Qt.application.version.length > 0 ? 0 : 8
             text: root.title
             color: root.strongTextColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: Math.round(15 * root.textScale)
             font.bold: true
             wrapMode: Text.Wrap
@@ -103,7 +103,7 @@ Dialog {
             visible: Qt.application.version.length > 0
             color: root.textColor
             opacity: 0.75
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: Math.round(11 * root.textScale)
             wrapMode: Text.Wrap
         }
@@ -139,7 +139,7 @@ Dialog {
                         Layout.minimumWidth: 0
                         text: modelData.key
                         color: root.strongTextColor
-                        font.family: "IBM Plex Mono"
+                        font.family: Qt.application.font.family
                         font.pixelSize: Math.round(12 * root.textScale)
                         font.bold: true
                         wrapMode: Text.Wrap
@@ -149,7 +149,7 @@ Dialog {
                         Layout.minimumWidth: 0
                         text: modelData.desc
                         color: root.textColor
-                        font.family: "IBM Plex Mono"
+                        font.family: Qt.application.font.family
                         font.pixelSize: Math.round(12 * root.textScale)
                         wrapMode: Text.Wrap
                     }

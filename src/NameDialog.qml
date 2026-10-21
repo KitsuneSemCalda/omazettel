@@ -123,7 +123,7 @@ Dialog {
         Label {
             text: root.heading
             color: root.strongTextColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: Math.round(16 * root.textScale)
             font.bold: true
         }
@@ -134,7 +134,7 @@ Dialog {
             text: root.message
             color: root.textColor
             wrapMode: Text.Wrap
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: Math.round(13 * root.textScale)
         }
 
@@ -151,7 +151,7 @@ Dialog {
                 if (root.wantsName)
                     nameField.forceActiveFocus();
             }
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: Math.round(13 * root.textScale)
         }
 
@@ -161,7 +161,7 @@ Dialog {
             text: "This template names the note itself."
             color: root.textColor
             opacity: 0.7
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: Math.round(12 * root.textScale)
         }
 
@@ -185,7 +185,7 @@ Dialog {
                 color: root.strongTextColor
                 selectionColor: root.selectionFill
                 selectedTextColor: root.selectionTextColor
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: Math.round(14 * root.textScale)
                 Keys.onReturnPressed: root.finish()
                 Keys.onEnterPressed: root.finish()

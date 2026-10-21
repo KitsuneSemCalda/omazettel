@@ -45,7 +45,7 @@ Dialog {
     component Heading: Label {
         color: root.textColor
         Layout.topMargin: root.scaled(10)
-        font.family: "IBM Plex Mono"
+        font.family: Qt.application.font.family
         font.pixelSize: root.scaled(13)
         font.bold: true
     }
@@ -54,7 +54,7 @@ Dialog {
         color: root.mutedColor
         wrapMode: Text.Wrap
         Layout.fillWidth: true
-        font.family: "IBM Plex Mono"
+        font.family: Qt.application.font.family
         font.pixelSize: root.scaled(11)
     }
 
@@ -76,7 +76,7 @@ Dialog {
             text: check.text
             wrapMode: Text.Wrap
             color: root.textColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: root.scaled(12)
         }
         TapHandler { onTapped: check.toggled() }
@@ -86,7 +86,7 @@ Dialog {
         id: action
         signal clicked()
         color: actionMouse.containsMouse ? root.textColor : root.accentColor
-        font.family: "IBM Plex Mono"
+        font.family: Qt.application.font.family
         font.pixelSize: root.scaled(12)
         MouseArea {
             id: actionMouse
@@ -112,7 +112,7 @@ Dialog {
             Label {
                 text: "Settings"
                 color: root.textColor
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(16)
                 font.bold: true
             }
@@ -163,7 +163,7 @@ Dialog {
                         verticalAlignment: TextInput.AlignVCenter
                         clip: true
                         color: root.textColor
-                        font.family: "IBM Plex Mono"
+                        font.family: Qt.application.font.family
                         font.pixelSize: root.scaled(12)
                         onEditingFinished: noteTemplates.author = text
                     }
@@ -182,7 +182,7 @@ Dialog {
                     model: choices
                     currentIndex: Math.max(0, choices.indexOf(noteTemplates.defaultTemplate))
                     onActivated: function(index) { noteTemplates.defaultTemplate = choices[index]; }
-                    font.family: "IBM Plex Mono"
+                    font.family: Qt.application.font.family
                     font.pixelSize: root.scaled(12)
                 }
                 Action { text: "Edit templates"; onClicked: root.templatesRequested() }

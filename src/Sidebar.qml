@@ -137,7 +137,7 @@ Rectangle {
             text: vault.isOpen ? vault.rootName : "Notes"
             color: root.textColor
             elide: Text.ElideRight
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: root.scaled(13)
             font.bold: true
         }
@@ -193,7 +193,7 @@ Rectangle {
                 required property var modelData
                 text: modelData.label
                 color: root.mode === modelData.id ? root.textColor : root.mutedColor
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(12)
                 font.bold: root.mode === modelData.id
                 Rectangle {
@@ -264,7 +264,7 @@ Rectangle {
                 selectByMouse: true
                 color: root.textColor
                 selectionColor: root.accentColor
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(12)
                 onTextChanged: searchDelay.restart()
                 Keys.onReturnPressed: {
@@ -284,7 +284,7 @@ Rectangle {
                 visible: searchField.text.length === 0
                 text: "Search notes…"
                 color: root.mutedColor
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(12)
             }
         }
@@ -303,7 +303,7 @@ Rectangle {
                   : (searchView.results.length === 0 ? "No notes match."
                      : searchView.results.length + (searchView.results.length === 1 ? " note" : " notes"))
             color: root.mutedColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: root.scaled(11)
         }
 
@@ -346,7 +346,7 @@ Rectangle {
                         text: resultRow.modelData.title
                         elide: Text.ElideRight
                         color: root.accentColor
-                        font.family: "IBM Plex Mono"
+                        font.family: Qt.application.font.family
                         font.pixelSize: root.scaled(12)
                         font.bold: true
                     }
@@ -357,7 +357,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         text: resultRow.modelData.count > 0 ? resultRow.modelData.count : ""
                         color: root.mutedColor
-                        font.family: "IBM Plex Mono"
+                        font.family: Qt.application.font.family
                         font.pixelSize: root.scaled(11)
                     }
                     MouseArea {
@@ -381,7 +381,7 @@ Rectangle {
                     text: resultRow.modelData.folder
                     elide: Text.ElideMiddle
                     color: root.mutedColor
-                    font.family: "IBM Plex Mono"
+                    font.family: Qt.application.font.family
                     font.pixelSize: root.scaled(10)
                 }
 
@@ -410,7 +410,7 @@ Rectangle {
                             maximumLineCount: 3
                             elide: Text.ElideRight
                             color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.75)
-                            font.family: "IBM Plex Mono"
+                            font.family: Qt.application.font.family
                             font.pixelSize: root.scaled(11)
                         }
                         MouseArea {
@@ -452,7 +452,7 @@ Rectangle {
             wrapMode: Text.Wrap
             text: "No tags yet. Write #tag in a note, or tags: [a, b] in its front matter."
             color: root.mutedColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: root.scaled(11)
         }
 
@@ -489,7 +489,7 @@ Rectangle {
                     text: "#" + tagRow.modelData.tag
                     elide: Text.ElideRight
                     color: root.accentColor
-                    font.family: "IBM Plex Mono"
+                    font.family: Qt.application.font.family
                     font.pixelSize: root.scaled(12)
                 }
                 Label {
@@ -499,7 +499,7 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     text: tagRow.modelData.count
                     color: root.mutedColor
-                    font.family: "IBM Plex Mono"
+                    font.family: Qt.application.font.family
                     font.pixelSize: root.scaled(11)
                 }
                 MouseArea {
@@ -533,7 +533,7 @@ Rectangle {
                         text: modelData.title
                         elide: Text.ElideRight
                         color: modelData.path === root.currentPath ? root.accentColor : root.textColor
-                        font.family: "IBM Plex Mono"
+                        font.family: Qt.application.font.family
                         font.pixelSize: root.scaled(12)
                     }
                     MouseArea {
@@ -646,7 +646,7 @@ Rectangle {
             text: "Pick a folder of Markdown notes. OmaZettel works on the files where they are."
             wrapMode: Text.Wrap
             color: root.mutedColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: root.scaled(12)
         }
 
@@ -665,7 +665,7 @@ Rectangle {
             topPadding: root.scaled(8)
             text: "Recent"
             color: root.mutedColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: root.scaled(11)
             font.capitalization: Font.AllUppercase
         }
@@ -678,7 +678,7 @@ Rectangle {
                 text: vault.prettyPath(modelData)
                 elide: Text.ElideMiddle
                 color: recentMouse.containsMouse ? root.accentColor : root.textColor
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(12)
                 MouseArea {
                     id: recentMouse
@@ -735,7 +735,7 @@ Rectangle {
             anchors.centerIn: parent
             text: dragGhost.label
             color: root.textColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: root.scaled(12)
         }
     }
@@ -834,7 +834,7 @@ Rectangle {
                 elide: Text.ElideRight
                 color: rowItem.isCurrent ? root.accentColor
                                      : (rowItem.isFolder ? root.textColor : Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.85))
-                font.family: "IBM Plex Mono"
+                font.family: Qt.application.font.family
                 font.pixelSize: root.scaled(12)
                 font.bold: rowItem.isFolder
             }
@@ -993,7 +993,7 @@ Rectangle {
                 return when.length > 0 ? "Synced " + when : "Up to date";
             }
             color: root.mutedColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: root.scaled(11)
         }
         MouseArea {
@@ -1028,7 +1028,7 @@ Rectangle {
         text: vault.lastError
         wrapMode: Text.Wrap
         color: root.darkMode ? "#e8a0a0" : "#a03030"
-        font.family: "IBM Plex Mono"
+        font.family: Qt.application.font.family
         font.pixelSize: root.scaled(11)
         MouseArea {
             anchors.fill: parent

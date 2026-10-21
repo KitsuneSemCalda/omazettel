@@ -44,7 +44,7 @@ MenuItem {
         elide: Text.ElideRight
         verticalAlignment: Text.AlignVCenter
         color: !item.enabled ? item.mutedColor : (item.highlighted ? item.accent : item.textColor)
-        font.family: "IBM Plex Mono"
+        font.family: Qt.application.font.family
         font.pixelSize: Math.round(12 * item.textScale)
     }
 

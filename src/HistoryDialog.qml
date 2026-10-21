@@ -63,7 +63,7 @@ Dialog {
             elide: Text.ElideMiddle
             Layout.fillWidth: true
             color: root.textColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: root.scaled(16)
             font.bold: true
         }
@@ -74,7 +74,7 @@ Dialog {
                   : root.versions.length === 0 ? "No saved versions of this note yet. Versions are saved on each sync."
                   : "− lines in the chosen version but not now   + lines added since"
             color: root.mutedColor
-            font.family: "IBM Plex Mono"
+            font.family: Qt.application.font.family
             font.pixelSize: root.scaled(11)
         }
 
@@ -111,7 +111,7 @@ Dialog {
                             width: parent.width
                             text: root.when(modelData.date)
                             color: index === root.versionIndex ? root.accentColor : root.textColor
-                            font.family: "IBM Plex Mono"
+                            font.family: Qt.application.font.family
                             font.pixelSize: root.scaled(12)
                         }
                         Label {
@@ -119,7 +119,7 @@ Dialog {
                             text: modelData.author + " · " + modelData.message
                             elide: Text.ElideRight
                             color: root.mutedColor
-                            font.family: "IBM Plex Mono"
+                            font.family: Qt.application.font.family
                             font.pixelSize: root.scaled(10)
                         }
                     }
