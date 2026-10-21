@@ -332,12 +332,35 @@ ApplicationWindow {
         return true;
     }
 
+    // Below the caret, or above it when the window ends first.
+    function placeCompleter(popup) {
+        var caret = editor.cursorRectangle;
+        popup.x = Math.max(0, Math.min(caret.x, editor.width - popup.width));
+        var below = editor.mapToItem(win.contentItem, 0, caret.y + caret.height + 4).y;
+        var room = win.height - win.footerHeight - below;
+        var height = Math.min(popup.implicitHeight, win.scaledSize(280));
+        popup.y = room >= height ? caret.y + caret.height + 4 : caret.y - height - 4;
+    }
+
     // Shows or updates the [[ completer at the caret.
     function updateLinkCompletion() {
         if (!vault.isOpen || editor.selectionStart !== editor.selectionEnd) {
             linkCompleter.close();
+            citeCompleter.close();
             return;
         }
+        // [@ citations, when a bibliography is loaded.
+        var cite = citations.count > 0 ? backend.citationQueryAt(editor.cursorPosition) : ({});
+        if (cite.query !== undefined) {
+            linkCompleter.close();
+            citeCompleter.query = cite.query;
+            citeCompleter.queryStart = cite.start;
+            placeCompleter(citeCompleter);
+            if (!citeCompleter.opened)
+                citeCompleter.open();
+            return;
+        }
+        citeCompleter.close();
         var context = backend.wikiQueryAt(editor.cursorPosition);
         if (context.query === undefined) {
             linkCompleter.close();
@@ -346,9 +369,7 @@ ApplicationWindow {
         linkCompleter.query = context.query;
         linkCompleter.queryStart = context.start;
         linkCompleter.closedLink = context.closed;
-        var caret = editor.cursorRectangle;
-        linkCompleter.x = Math.min(caret.x, editor.width - linkCompleter.width);
-        linkCompleter.y = caret.y + caret.height + 4;
+        placeCompleter(linkCompleter);
         if (!linkCompleter.opened)
             linkCompleter.open();
     }
@@ -890,6 +911,8 @@ ApplicationWindow {
         onMoveRequested: function(path, folder) { win.moveItem(path, folder); }
         onDailyNoteRequested: win.openDailyNote()
         onExportRequested: function(path) { win.exportNote(path); }
+        onExportFolderRequested: function(path) { exportDialog.openForFolder(path, noteTemplates.author); }
+        onCitationsRequested: citationsDialog.open()
         onSearchResultRequested: function(path, position, length) { win.openSearchResult(path, position, length); }
         onEditTemplateRequested: function(path) { win.openNote(vault.urlForPath(path)); }
         onAuthorRequested: nameDialog.askForName("Author name", noteTemplates.author, "Save",
@@ -944,6 +967,20 @@ ApplicationWindow {
             close();
             win.openNote(vault.urlForPath(path));
         }
+        onClosed: editor.forceActiveFocus()
+    }
+
+    CitationsDialog {
+        id: citationsDialog
+        darkMode: win.darkMode
+        textScale: win.textScale
+        textColor: win.textColor
+        mutedColor: win.mutedColor
+        accentColor: backend.themeAccent
+        raisedColor: win.raisedColor
+        borderColor: win.borderColor
+        containerWidth: win.width
+        containerHeight: win.height
         onClosed: editor.forceActiveFocus()
     }
 
@@ -1525,7 +1562,7 @@ ApplicationWindow {
                 Keys.priority: Keys.BeforeItem
                 Keys.onPressed: function(event) {
                     // OmaZettel: the [[ completer takes its navigation keys.
-                    if (linkCompleter.handleKey(event)) {
+                    if (linkCompleter.handleKey(event) || citeCompleter.handleKey(event)) {
                         event.accepted = true;
                         return;
                     }
@@ -1678,6 +1715,27 @@ ApplicationWindow {
                             return;
                         var end = editor.cursorPosition + (closedLink ? 2 : 0);
                         EditorMutations.replaceRange(editor, queryStart, end, note.name + "]]");
+                    }
+                }
+
+                NotePicker {
+                    id: citeCompleter
+                    objectName: "citeCompleter"
+                    hasField: false
+                    showSubtitle: true
+                    width: win.scaledSize(420)
+                    sourceItems: citations.revision >= 0 ? citations.entries() : []
+                    property int queryStart: 0
+                    darkMode: win.darkMode
+                    textScale: win.textScale
+                    textColor: win.textColor
+                    mutedColor: win.mutedColor
+                    accentColor: backend.themeAccent
+                    raisedColor: win.raisedColor
+                    borderColor: win.borderColor
+                    onPicked: function(entry, typed) {
+                        if (entry)
+                            EditorMutations.replaceRange(editor, queryStart, editor.cursorPosition, entry.name);
                     }
                 }
 

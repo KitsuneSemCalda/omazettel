@@ -117,6 +117,8 @@ public:
     // The [[ query being typed before position on its line, or null when
     // the caret is not inside an unfinished [[.
     Q_INVOKABLE QVariantMap wikiQueryAt(int position) const;
+    // The citation key being typed before position inside [...@, or {}.
+    Q_INVOKABLE QVariantMap citationQueryAt(int position) const;
     Q_INVOKABLE void showStatus(const QString &status) { setStatus(status); }
     // The #heading of the [[link]] at a position, or "".
     Q_INVOKABLE QString wikiHeadingAt(int position) const;

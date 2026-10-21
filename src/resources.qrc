@@ -15,6 +15,7 @@
         <file alias="NotePanel.qml">NotePanel.qml</file>
         <file alias="NotePicker.qml">NotePicker.qml</file>
         <file alias="ExportDialog.qml">ExportDialog.qml</file>
+        <file alias="CitationsDialog.qml">CitationsDialog.qml</file>
         <file alias="fonts/IBMPlexMono-Regular.ttf">../fonts/IBMPlexMono-Regular.ttf</file>
         <file alias="fonts/IBMPlexMono-Italic.ttf">../fonts/IBMPlexMono-Italic.ttf</file>
         <file alias="fonts/IBMPlexMono-Bold.ttf">../fonts/IBMPlexMono-Bold.ttf</file>

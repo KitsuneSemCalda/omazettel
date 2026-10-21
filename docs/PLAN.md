@@ -140,6 +140,16 @@ After version 1, in rough order of value:
   `Backend::outline/headingPosition`, an Outline section in the right panel
   marking the current section, `[[Note#Heading]]` and `[[#Heading]]` jumps.
 
+- **Folder export, citations, Oma palette (done, 2026-10-21):**
+  `Exporter::folderNotes/saveFolderSettings/combineNotes/exportFolder` with
+  `.omazettel-project.yaml` per folder and the export dialog's folder mode;
+  `src/citations.*` (BibTeX and CSL JSON, settings in
+  `.omazettel/citations.yaml`, reload on change), citeproc on export,
+  `[@` completion and citation highlighting, `CitationsDialog.qml`;
+  `Backend::omaPalette` and chrome colours in Main.qml.
+- **Next (requested 2026-10-21):** storage and collaboration: where notes
+  live (local, synced, cloud) and editing by more than one person.
+
 ## Export templates (designed 2026-10-20, built in Phase 3)
 
 Modelled on Zettlr's custom templates and reference documents

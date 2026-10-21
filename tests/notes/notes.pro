@@ -10,6 +10,7 @@ SOURCES += \
     ../../src/backend_notes.cpp \
     ../../src/markdownhighlighter.cpp \
     ../../src/markdownhighlighter_notes.cpp \
+    ../../src/citations.cpp \
     ../../src/exporter.cpp \
     ../../src/noteindex.cpp \
     ../../src/notetemplates.cpp \
@@ -18,6 +19,7 @@ SOURCES += \
 HEADERS += \
     ../../src/backend.h \
     ../../src/markdownhighlighter.h \
+    ../../src/citations.h \
     ../../src/exporter.h \
     ../../src/noteindex.h \
     ../../src/notetemplates.h \

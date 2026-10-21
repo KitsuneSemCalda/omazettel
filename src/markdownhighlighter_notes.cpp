@@ -4,6 +4,7 @@
 #include "markdownhighlighter.h"
 #include "zettel.h"
 
+#include <QRegularExpression>
 #include <QTextBlock>
 #include <QTextDocument>
 
@@ -46,6 +47,33 @@ void MarkdownHighlighter::highlightZettel(const QString &text) {
 
     const QList<Zettel::WikiLink> links = Zettel::wikiLinks(text);
     const QList<Zettel::TagSpan> tagSpans = Zettel::tags(text);
+
+    // Citations: [@key, p. 4; @other] in the accent, and @key as well.
+    if (text.contains(QLatin1Char('@'))) {
+        static const QRegularExpression keyRe(QStringLiteral("(?<![\\w@.])@[\\w][\\w:.#$%&+?<>~/-]*"));
+        const auto code = Zettel::codeRanges(text);
+        QTextCharFormat citeFormat;
+        citeFormat.setForeground(m_linkFormat.foreground());
+        auto it = keyRe.globalMatch(text);
+        while (it.hasNext()) {
+            const QRegularExpressionMatch match = it.next();
+            bool inCode = false;
+            for (const auto &range : code)
+                inCode = inCode || (match.capturedStart() >= range.first && match.capturedStart() < range.second);
+            if (inCode)
+                continue;
+            QString key = match.captured(0);
+            // A sentence's full stop is not part of the key.
+            int length = int(key.size());
+            while (length > 1 && QStringLiteral(".:;").contains(key.at(length - 1)))
+                --length;
+            for (int i = int(match.capturedStart()); i < match.capturedStart() + length; ++i) {
+                QTextCharFormat merged = format(i);
+                merged.merge(citeFormat);
+                setFormat(i, 1, merged);
+            }
+        }
+    }
     if (links.isEmpty() && tagSpans.isEmpty())
         return;
 

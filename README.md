@@ -9,8 +9,16 @@ Omarchy project.
 
 > **Status: early development (0.1.0).** Working: the notes folder sidebar,
 > `[[wiki links]]`, backlinks, tags, note templates, pandoc export with
-> custom templates, search across notes and an outline. Still to come:
-> polish and packaging. See `docs/PLAN.md`.
+> custom templates, folder export, citations, search across notes and an
+> outline, in the shared Oma colour palette. Still to come: storage and
+> collaboration, then polish and packaging. See `docs/PLAN.md`.
+
+## Look
+
+OmaZettel uses the shared Oma palette (as in OmaShow and the other Oma apps):
+a fixed dark surround, with the accent from your Omarchy theme. Turn it off in
+the sidebar's … menu → Oma color palette to take every colour from the Omarchy
+theme instead, as Omawrite does.
 
 ## Notes folder
 
@@ -59,6 +67,21 @@ inside the notes folder (default: the selected folder) and `existing="open"`
 opens a note of that name instead of making a second one (the Daily template
 uses it). A template that doesn't use `{{title}}` doesn't ask for one.
 
+## Citations
+
+Point OmaZettel at a bibliography in … menu → Citations…: a BibTeX (`.bib`)
+or CSL JSON file, such as the one Zotero's Better BibTeX keeps exported (it
+reloads when the file changes), and optionally a citation style (`.csl`, for
+example APA from the [Zotero Style Repository](https://www.zotero.org/styles);
+pandoc's default is Chicago author-date). Both are saved in
+`.omazettel/citations.yaml`, relative to the notes folder when inside it.
+
+Cite with `[@key]`, `[@key, p. 4]` or `[see @one; @two]`; typing `[@` suggests
+references by key, author, year or title. Citations show in the accent.
+Exports of notes that cite something run pandoc's citeproc, which formats the
+citations and adds the reference list. A note can also name its own
+`bibliography:` in its YAML header.
+
 ## Search and outline
 
 - Ctrl+Shift+F opens the sidebar's Search tab (with the selected text, if
@@ -98,6 +121,14 @@ but as pandoc's own files so the same export also works from a terminal:
 - Profiles point to templates with `${.}/../templates/<file>` (`${.}` is the
   profile's folder), so from a terminal:
   `pandoc -d .omazettel/export/PDF.yaml note.md -o note.pdf`.
+
+**Export a folder** (right-click a folder → Export folder…, or … menu →
+Export the whole notes folder…) to make one document from all its notes,
+subfolders included, like a Zettlr project. Untick notes to leave them out,
+reorder with ↑ ↓, and give the document a title and author. Each note's YAML
+header is dropped and its title becomes a chapter heading. The order, choices
+and profile are saved in the folder's `.omazettel-project.yaml`; notes added
+later are appended.
 
 PDF export needs a LaTeX engine. The PDF profile uses XeLaTeX when it's
 installed (`sudo pacman -S texlive-xetex`, which handles any Unicode text and

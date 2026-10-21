@@ -14,6 +14,7 @@
 #include "backend.h"
 #include "cli.h"
 #include "systemtheme.h"
+#include "citations.h"
 #include "exporter.h"
 #include "noteindex.h"
 #include "notetemplates.h"
@@ -101,6 +102,11 @@ int main(int argc, char *argv[]) {
     exporter.setRoot(vault.rootPath());
     QObject::connect(&vault, &Vault::rootPathChanged, &exporter,
                      [&vault, &exporter]() { exporter.setRoot(vault.rootPath()); });
+    // Citations: the bibliography and style named in .omazettel/citations.yaml.
+    Citations citations(&app);
+    citations.setRoot(vault.rootPath());
+    QObject::connect(&vault, &Vault::rootPathChanged, &citations,
+                     [&vault, &citations]() { citations.setRoot(vault.rootPath()); });
     QObject::connect(&app, &QGuiApplication::applicationStateChanged, &noteIndex,
                      [&noteIndex](Qt::ApplicationState state) {
                          if (state == Qt::ApplicationActive)
@@ -118,6 +124,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("noteIndex"), &noteIndex);
     engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), &noteTemplates);
     engine.rootContext()->setContextProperty(QStringLiteral("exporter"), &exporter);
+    engine.rootContext()->setContextProperty(QStringLiteral("citations"), &citations);
 
     engine.load(QUrl(QStringLiteral("qrc:/Main.qml")));
     if (engine.rootObjects().isEmpty()) {

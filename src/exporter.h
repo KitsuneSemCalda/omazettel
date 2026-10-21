@@ -72,6 +72,27 @@ public:
                                 const QString &outputPath, const QString &text);
     Q_INVOKABLE void cancel();
 
+    // ── Folder export (a "project", as in Zettlr) ──────────────────────────
+    // The notes in folder and its subfolders, in export order:
+    // [{path, name (relative, without .md), included}]. Order and choices come
+    // from the folder's .omazettel-project.yaml; notes it does not mention
+    // follow in natural order, included.
+    Q_INVOKABLE QVariantList folderNotes(const QString &folder) const;
+    // {title, author, profile} saved for the folder, or defaults.
+    Q_INVOKABLE QVariantMap folderSettings(const QString &folder) const;
+    // Saves order, choices and settings. entries: [{path, included}].
+    Q_INVOKABLE bool saveFolderSettings(const QString &folder, const QVariantList &entries,
+                                        const QString &title, const QString &author,
+                                        const QString &profilePath);
+    Q_INVOKABLE QString defaultFolderOutputPath(const QString &folder, const QString &profilePath) const;
+    // Exports the included notes as one document. Emits finished().
+    Q_INVOKABLE bool exportFolder(const QString &folder, const QStringList &notePaths,
+                                  const QString &title, const QString &author,
+                                  const QString &profilePath, const QString &outputPath);
+    // The single document folder export feeds pandoc.
+    static QString combineNotes(const QStringList &notePaths, const QString &title,
+                                const QString &author, const QDate &date);
+
     // Helpers, public for the tests.
     static QString formatOf(const QString &profileText);
     static QString extensionFor(const QString &format);
@@ -80,6 +101,9 @@ public:
     static QString withTemplate(const QString &profileText, const QString &key,
                                 const QString &value);
     static QString prepareText(const QString &text);
+    // --citeproc with the notes folder's bibliography and style, when the
+    // text cites something (or names its own bibliography).
+    QStringList citationArguments(const QString &text) const;
 
 signals:
     void changed();
@@ -89,6 +113,9 @@ signals:
 
 private:
     void finish(bool ok, const QString &message);
+    bool runPandoc(const QString &text, const QString &workingDirectory,
+                   const QStringList &resourceFolders, const QString &profilePath,
+                   const QString &outputPath, const QString &fallbackTitle);
 
     QString m_root;
     QString m_error;

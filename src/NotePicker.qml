@@ -21,7 +21,12 @@ Popup {
     property string query: hasField ? field.text : ""
     property int maxResults: hasField ? 50 : 8
     property int currentIndex: 0
-    readonly property var results: filter(noteIndex.revision >= 0 ? noteIndex.notes() : [], query)
+    // What to pick from: the notes, unless given another list of
+    // {name, title, folder} (citations).
+    property var sourceItems: null
+    property bool showSubtitle: hasField
+    readonly property var results: filter(sourceItems !== null ? sourceItems
+                                           : (noteIndex.revision >= 0 ? noteIndex.notes() : []), query)
     readonly property var currentResult: currentIndex >= 0 && currentIndex < results.length
                                          ? results[currentIndex] : null
 
@@ -198,7 +203,7 @@ Popup {
                 required property var modelData
                 required property int index
                 width: list.width
-                height: root.scaled(root.hasField ? 44 : 32)
+                height: root.scaled(root.showSubtitle ? 44 : 32)
                 radius: root.scaled(4)
                 color: index === root.currentIndex
                        ? Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.18)
@@ -216,7 +221,7 @@ Popup {
                         font.pixelSize: root.scaled(13)
                     }
                     Label {
-                        visible: root.hasField && (modelData.folder.length > 0 || modelData.title !== modelData.name)
+                        visible: root.showSubtitle && (modelData.folder.length > 0 || modelData.title !== modelData.name)
                         width: parent.width
                         text: (modelData.title !== modelData.name ? modelData.title : "")
                               + (modelData.folder.length > 0

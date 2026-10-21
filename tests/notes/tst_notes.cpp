@@ -12,6 +12,7 @@
 #include <QStandardPaths>
 
 #include "backend.h"
+#include "citations.h"
 #include "exporter.h"
 #include "noteindex.h"
 #include "notetemplates.h"
@@ -1116,6 +1117,216 @@ private slots:
         QCOMPARE(editor->property("cursorPosition").toInt(), 33);
     }
 
+
+    // ── Folder export ───────────────────────────────────────────────────────
+
+    void ordersFolderNotes() {
+        QTemporaryDir dir;
+        for (const char *name : {"10 Ten.md", "2 Two.md", "1 One.md", "Part B/2 Bee.md", "Part A/1 Ay.md",
+                                 "Part A/Sub/x.md", ".hidden/no.md", "notes.txt"})
+            writeFile(dir.filePath(QString::fromUtf8(name)), "x\n");
+        Exporter exporter;
+        const auto names = [&exporter, &dir]() {
+            QStringList list;
+            for (const QVariant &entry : exporter.folderNotes(dir.path()))
+                list << entry.toMap().value(QStringLiteral("name")).toString()
+                        + (entry.toMap().value(QStringLiteral("included")).toBool() ? QString() : QStringLiteral(" (out)"));
+            return list;
+        };
+        QCOMPARE(names(), (QStringList{QStringLiteral("1 One"), QStringLiteral("2 Two"), QStringLiteral("10 Ten"),
+                                       QStringLiteral("Part A/1 Ay"), QStringLiteral("Part A/Sub/x"),
+                                       QStringLiteral("Part B/2 Bee")}));
+
+        // A saved order and choices come back; new notes follow, included.
+        QVariantList entries = exporter.folderNotes(dir.path());
+        entries.move(2, 0);
+        QVariantMap out = entries[1].toMap();
+        out.insert(QStringLiteral("included"), false);
+        entries[1] = out;
+        QVERIFY(exporter.saveFolderSettings(dir.path(), entries, QStringLiteral("My \"Book\""),
+                                            QStringLiteral("Matt"), QString()));
+        writeFile(dir.filePath(QStringLiteral("0 New.md")), "x\n");
+        QCOMPARE(names(), (QStringList{QStringLiteral("10 Ten"), QStringLiteral("1 One (out)"), QStringLiteral("2 Two"),
+                                       QStringLiteral("Part A/1 Ay"), QStringLiteral("Part A/Sub/x"),
+                                       QStringLiteral("Part B/2 Bee"), QStringLiteral("0 New")}));
+        const QVariantMap settings = exporter.folderSettings(dir.path());
+        QCOMPARE(settings.value(QStringLiteral("title")).toString(), QStringLiteral("My \"Book\""));
+        QCOMPARE(settings.value(QStringLiteral("author")).toString(), QStringLiteral("Matt"));
+        QTemporaryDir fresh;
+        QCOMPARE(exporter.folderSettings(fresh.path()).value(QStringLiteral("title")).toString(),
+                 QFileInfo(fresh.path()).fileName());
+    }
+
+    void combinesNotes() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("a.md")), "<!-- omazettel: name=\"x\" -->\n---\ntitle: \"Intro\"\ntags: [a]\n---\n\nHello [[b]].\n");
+        writeFile(dir.filePath(QStringLiteral("b.md")), "---\ntitle: \"Ignored\"\n---\n# Own heading\n\nBody.\n");
+        writeFile(dir.filePath(QStringLiteral("c.md")), "Plain note.\n");
+        const QString combined = Exporter::combineNotes(
+            {dir.filePath(QStringLiteral("a.md")), dir.filePath(QStringLiteral("b.md")), dir.filePath(QStringLiteral("c.md"))},
+            QStringLiteral("Book"), QStringLiteral("Matt"), QDate(2026, 10, 21));
+        QCOMPARE(combined, QStringLiteral(
+            "---\ntitle: \"Book\"\nauthor: \"Matt\"\ndate: \"2026-10-21\"\n---\n\n"
+            "# Intro\n\nHello [[b]].\n\n# Own heading\n\nBody.\n\nPlain note.\n\n"));
+    }
+
+    void exportsAFolder() {
+        QTemporaryDir dir;
+        Exporter exporter;
+        if (!exporter.pandocAvailable())
+            QSKIP("pandoc is not installed.");
+        exporter.setRoot(dir.path());
+        exporter.ensureDefaults();
+        writeFile(dir.filePath(QStringLiteral("Book/1 Start.md")), "---\ntitle: \"Start\"\n---\n\nFirst [[2 Middle|middle]].\n");
+        writeFile(dir.filePath(QStringLiteral("Book/2 Middle.md")), "# Middle\n\nSecond.\n");
+        const QString folder = dir.filePath(QStringLiteral("Book"));
+        const QString html = exporter.defaultFolderOutputPath(folder, exporter.profilesFolder() + QStringLiteral("/HTML.yaml"));
+        QCOMPARE(html, dir.filePath(QStringLiteral("Book/Book.html")));
+        QSignalSpy finished(&exporter, &Exporter::finished);
+        QVERIFY(exporter.exportFolder(folder, {dir.filePath(QStringLiteral("Book/1 Start.md")),
+                                               dir.filePath(QStringLiteral("Book/2 Middle.md"))},
+                                      QStringLiteral("The Book"), QStringLiteral("Matt"),
+                                      exporter.profilesFolder() + QStringLiteral("/HTML.yaml"), html));
+        QVERIFY(finished.wait(30000));
+        QVERIFY2(finished.first().at(0).toBool(), qPrintable(finished.first().at(2).toString()));
+        const QString page = readFile(html);
+        QVERIFY(page.contains(QStringLiteral("The Book")));
+        QVERIFY(page.indexOf(QStringLiteral("First middle.")) < page.indexOf(QStringLiteral("Second.")));
+        QVERIFY(page.contains(QStringLiteral(">Start</h1>")));
+        QVERIFY(!exporter.exportFolder(folder, {}, QString(), QString(), exporter.profilesFolder() + QStringLiteral("/HTML.yaml"), html));
+    }
+
+    // ── Citations ───────────────────────────────────────────────────────────
+
+    void readsBibTeX() {
+        const auto entries = Citations::parseBibTeX(QStringLiteral(
+            "@comment{ignore me}\n@string{jx = \"Journal X\"}\n"
+            "@article{luhmann1981,\n  author = {Luhmann, Niklas},\n  title = {Kommunikation mit {Zettelk\\\"a}sten (Part 1},\n"
+            "  year = 1981, journal = jx }\n"
+            "@book( ahrens2017 , author = \"S{\\\"o}nke Ahrens and Jane Doe\", title = \"How to Take Smart Notes\", date = {2017-02-24})\n"
+            "@misc{many, author = {A, B and C, D and E, F}, title = {Group}}\n"));
+        QCOMPARE(entries.size(), 3);
+        QCOMPARE(entries.at(0).key, QStringLiteral("luhmann1981"));
+        QCOMPARE(entries.at(0).author, QStringLiteral("Luhmann"));
+        QCOMPARE(entries.at(0).year, QStringLiteral("1981"));
+        QCOMPARE(entries.at(0).title, QStringLiteral("Kommunikation mit Zettelkästen (Part 1"));
+        QCOMPARE(entries.at(1).key, QStringLiteral("ahrens2017"));
+        QCOMPARE(entries.at(1).author, QStringLiteral("Ahrens & Doe"));
+        QCOMPARE(entries.at(1).year, QStringLiteral("2017"));
+        QCOMPARE(entries.at(2).author, QStringLiteral("A et al."));
+    }
+
+    void readsCslJson() {
+        const auto entries = Citations::parseCslJson(
+            "[{\"id\":\"doe2020\",\"title\":\"A  Title\",\"author\":[{\"family\":\"Doe\",\"given\":\"J\"}],"
+            "\"issued\":{\"date-parts\":[[2020,5]]}},{\"id\":\"org\",\"author\":[{\"literal\":\"WHO\"}],"
+            "\"issued\":{\"raw\":\"2019\"}},{\"title\":\"no id\"}]");
+        QCOMPARE(entries.size(), 2);
+        QCOMPARE(entries.at(0).key, QStringLiteral("doe2020"));
+        QCOMPARE(entries.at(0).title, QStringLiteral("A Title"));
+        QCOMPARE(entries.at(0).year, QStringLiteral("2020"));
+        QCOMPARE(entries.at(1).author, QStringLiteral("WHO"));
+        QCOMPARE(entries.at(1).year, QStringLiteral("2019"));
+    }
+
+    void keepsCitationSettingsInTheFolder() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("refs/library.bib")),
+                  "@book{one, author={One, A}, title={First}, year={2001}}\n");
+        Citations citations;
+        citations.setRoot(QFileInfo(dir.path()).canonicalFilePath());
+        QCOMPARE(citations.count(), 0);
+        QVERIFY(citations.setBibliography(dir.filePath(QStringLiteral("refs/library.bib"))));
+        QCOMPARE(citations.count(), 1);
+        // Stored relative to the notes folder, so it moves with it.
+        QVERIFY(readFile(dir.filePath(QStringLiteral(".omazettel/citations.yaml")))
+                    .contains(QStringLiteral("bibliography: \"refs/library.bib\"")));
+        QCOMPARE(Citations::settingsFor(QFileInfo(dir.path()).canonicalFilePath()).bibliography,
+                 QFileInfo(dir.filePath(QStringLiteral("refs/library.bib"))).canonicalFilePath());
+        QCOMPARE(citations.entries().first().toMap().value(QStringLiteral("title")).toString(),
+                 QStringLiteral("One 2001 · First"));
+        QCOMPARE(citations.describe(QStringLiteral("one")), QStringLiteral("One (2001) First"));
+
+        // Zotero rewrites the file: it reloads.
+        writeFile(dir.filePath(QStringLiteral("refs/library.bib")),
+                  "@book{one, title={First}}\n@book{two, title={Second}}\n");
+        QTRY_COMPARE(citations.count(), 2);
+
+        writeFile(dir.filePath(QStringLiteral("refs/empty.bib")), "nothing here\n");
+        citations.setBibliography(dir.filePath(QStringLiteral("refs/empty.bib")));
+        QVERIFY(!citations.error().isEmpty());
+        citations.setBibliography(QString());
+        QCOMPARE(citations.count(), 0);
+        QVERIFY(citations.error().isEmpty());
+    }
+
+    void exportsCitations() {
+        QTemporaryDir dir;
+        Exporter exporter;
+        if (!exporter.pandocAvailable())
+            QSKIP("pandoc is not installed.");
+        const QString root = QFileInfo(dir.path()).canonicalFilePath();
+        exporter.setRoot(root);
+        exporter.ensureDefaults();
+        writeFile(dir.filePath(QStringLiteral("refs.bib")),
+                  "@book{ahrens2017, author={Ahrens, S\\\"onke}, title={How to Take Smart Notes}, year={2017}, publisher={CreateSpace}}\n");
+        Citations citations;
+        citations.setRoot(root);
+        citations.setBibliography(dir.filePath(QStringLiteral("refs.bib")));
+        QVERIFY(exporter.citationArguments(QStringLiteral("No citations here.")).isEmpty());
+        QVERIFY(exporter.citationArguments(QStringLiteral("As shown [@ahrens2017].")).contains(QStringLiteral("--citeproc")));
+        QVERIFY(exporter.citationArguments(QStringLiteral("mail me at a@b.com")).isEmpty());
+
+        const QString note = dir.filePath(QStringLiteral("Cited.md"));
+        writeFile(note, "---\ntitle: \"Cited\"\n---\n\nSlip boxes work [@ahrens2017, p. 12].\n");
+        const QString html = dir.filePath(QStringLiteral("Cited.html"));
+        QSignalSpy finished(&exporter, &Exporter::finished);
+        QVERIFY(exporter.exportNote(note, exporter.profilesFolder() + QStringLiteral("/HTML.yaml"), html));
+        QVERIFY(finished.wait(30000));
+        QVERIFY2(finished.first().at(0).toBool(), qPrintable(finished.first().at(2).toString()));
+        const QString page = readFile(html);
+        QVERIFY2(page.contains(QStringLiteral("Ahrens 2017, 12")), qPrintable(page.right(1500)));
+        QVERIFY(page.contains(QStringLiteral("How to Take Smart Notes")));
+        QVERIFY(page.contains(QStringLiteral("refs")));
+    }
+
+    void completesCitations() {
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("Draft.md")), "# Draft\n");
+        writeFile(dir.filePath(QStringLiteral("refs.bib")),
+                  "@book{ahrens2017, author={Ahrens, S}, title={Smart Notes}, year={2017}}\n@book{luhmann1981, author={Luhmann, N}, title={Kommunikation}, year={1981}}\n");
+        Backend backend;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+        m_windowCitations->setBibliography(dir.filePath(QStringLiteral("refs.bib")));
+        QMetaObject::invokeMethod(window.get(), "openNote",
+                                  Q_ARG(QVariant, QUrl::fromLocalFile(dir.filePath(QStringLiteral("Draft.md")))));
+        auto *editor = window->findChild<QQuickItem *>(QStringLiteral("sourceEditor"));
+        auto *completer = window->findChild<QObject *>(QStringLiteral("citeCompleter"));
+        QVERIFY(completer);
+        editor->setProperty("text", QStringLiteral("# Draft\n\nAs argued [see @luh"));
+        editor->setProperty("cursorPosition", editor->property("length"));
+        QTRY_VERIFY(completer->property("opened").toBool());
+        const QVariantList results = completer->property("results").toList();
+        QCOMPARE(results.first().toMap().value(QStringLiteral("name")).toString(), QStringLiteral("luhmann1981"));
+        QMetaObject::invokeMethod(completer, "accept");
+        QCOMPARE(editor->property("text").toString(), QStringLiteral("# Draft\n\nAs argued [see @luhmann1981"));
+
+        // Search by author too, and not outside brackets.
+        QCOMPARE(backend.citationQueryAt(editor->property("length").toInt()).value(QStringLiteral("query")).toString(),
+                 QStringLiteral("luhmann1981"));
+        // Right after the bracket, and after a semicolon.
+        editor->setProperty("text", QStringLiteral("x [@"));
+        QCOMPARE(backend.citationQueryAt(4).value(QStringLiteral("query")).toString(), QString());
+        QVERIFY(!backend.citationQueryAt(4).isEmpty());
+        editor->setProperty("text", QStringLiteral("[@one; @ah"));
+        QCOMPARE(backend.citationQueryAt(10).value(QStringLiteral("query")).toString(), QStringLiteral("ah"));
+        editor->setProperty("text", QStringLiteral("email a@b and @luh"));
+        QVERIFY(backend.citationQueryAt(editor->property("length").toInt()).isEmpty());
+    }
+
     // ── Oma palette ─────────────────────────────────────────────────────────
 
     void omaPaletteSetsTheSurround() {
@@ -1346,6 +1557,9 @@ private:
         m_windowExporter = std::make_unique<Exporter>();
         m_windowExporter->setRoot(vault.rootPath());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_windowExporter.get());
+        m_windowCitations = std::make_unique<Citations>();
+        m_windowCitations->setRoot(vault.rootPath());
+        engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_windowCitations.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         if (!component.isReady()) {
             qWarning() << component.errorString();
@@ -1362,6 +1576,7 @@ private:
     std::unique_ptr<NoteIndex> m_windowIndex;
     std::unique_ptr<NoteTemplates> m_windowTemplates;
     std::unique_ptr<Exporter> m_windowExporter;
+    std::unique_ptr<Citations> m_windowCitations;
 };
 
 QTEST_MAIN(NotesTest)

@@ -186,3 +186,20 @@ void Backend::setOmaPalette(bool enabled) {
     loadOmarchyTheme();
     emit themeColorsChanged();
 }
+
+QVariantMap Backend::citationQueryAt(int position) const {
+    if (!m_document || insideFence(position))
+        return {};
+    const QTextBlock block = m_document->findBlock(position);
+    if (!block.isValid())
+        return {};
+    const QString before = block.text().left(position - block.position());
+    // Inside an open [ ... with @ starting the word at the caret.
+    static const QRegularExpression citeRe(
+        QStringLiteral("\\[(?:[^\\[\\]]*[;\\s-])?@([\\w:.#$%&+?<>~/-]*)$"));
+    const QRegularExpressionMatch match = citeRe.match(before);
+    if (!match.hasMatch())
+        return {};
+    return {{QStringLiteral("query"), match.captured(1)},
+            {QStringLiteral("start"), block.position() + int(match.capturedStart(1))}};
+}

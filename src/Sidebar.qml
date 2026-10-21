@@ -42,6 +42,8 @@ Rectangle {
     signal moveRequested(string path, string folder)
     signal dailyNoteRequested()
     signal exportRequested(string path)
+    signal exportFolderRequested(string path)
+    signal citationsRequested()
     signal editTemplateRequested(string path)
     signal authorRequested()
 
@@ -587,6 +589,16 @@ Rectangle {
             }
         }
         MenuItem {
+            text: "Export the whole notes folder…"
+            enabled: vault.isOpen
+            onTriggered: root.exportFolderRequested(vault.rootPath)
+        }
+        MenuItem {
+            text: "Citations…"
+            enabled: vault.isOpen
+            onTriggered: root.citationsRequested()
+        }
+        MenuItem {
             text: "Oma color palette"
             checkable: true
             checked: backend.omaPalette
@@ -879,10 +891,9 @@ Rectangle {
             onTriggered: root.newFolderRequested(vault.folderFor(itemMenu.path))
         }
         MenuItem {
-            text: "Export…"
-            visible: !itemMenu.isFolder
-            height: visible ? implicitHeight : 0
-            onTriggered: root.exportRequested(itemMenu.path)
+            text: itemMenu.isFolder ? "Export folder…" : "Export…"
+            onTriggered: itemMenu.isFolder ? root.exportFolderRequested(itemMenu.path)
+                                           : root.exportRequested(itemMenu.path)
         }
         MenuSeparator {}
         MenuItem {

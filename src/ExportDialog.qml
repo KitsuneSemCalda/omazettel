@@ -25,6 +25,18 @@ Dialog {
     property var askName: null
 
     property string notePath: ""
+    // Folder export: every note in a folder as one document.
+    property bool isFolder: false
+    property string folderPath: ""
+    property var folderEntries: []
+    property string folderTitle: ""
+    property string folderAuthor: ""
+    readonly property int includedCount: {
+        var count = 0;
+        for (var i = 0; i < folderEntries.length; ++i)
+            count += folderEntries[i].included ? 1 : 0;
+        return count;
+    }
     property string noteText: ""
     property bool useNoteText: false
     property string outputPath: ""
@@ -44,18 +56,31 @@ Dialog {
 
     // Opens the dialog for a note. text is the editor's copy when it is the
     // open note, so unsaved changes are exported too.
-    function openFor(path, text, isOpenNote) {
-        notePath = path;
-        noteText = text;
-        useNoteText = isOpenNote;
+    function openForFolder(folder, defaultAuthor) {
+        isFolder = true;
+        folderPath = folder;
+        notePath = "";
         exporter.ensureDefaults();
         exporter.reload();
-        // The profile used last, else PDF, else the first.
-        var last = exporter.lastProfile;
+        folderEntries = exporter.folderNotes(folder);
+        var settings = exporter.folderSettings(folder);
+        folderTitle = settings.title;
+        folderAuthor = settings.author.length > 0 ? settings.author : defaultAuthor;
+        chooseProfile(settings.profile);
+        resultState = "";
+        message = "";
+        open();
+    }
+
+    // The given profile, else the one used last, else PDF, else the first.
+    function chooseProfile(preferred) {
         var index = -1;
-        for (var i = 0; i < profileList.length; ++i) {
-            if (profileList[i].path === last)
-                index = i;
+        var wanted = [preferred, exporter.lastProfile];
+        for (var w = 0; index < 0 && w < wanted.length; ++w) {
+            for (var i = 0; wanted[w] && i < profileList.length; ++i) {
+                if (profileList[i].path === wanted[w])
+                    index = i;
+            }
         }
         for (var j = 0; index < 0 && j < profileList.length; ++j) {
             if (profileList[j].name === "PDF")
@@ -63,13 +88,44 @@ Dialog {
         }
         profileIndex = Math.max(0, index);
         updateOutput();
+    }
+
+    function moveEntry(index, step) {
+        var target = index + step;
+        if (target < 0 || target >= folderEntries.length)
+            return;
+        var entries = folderEntries.slice();
+        var moved = entries[index];
+        entries[index] = entries[target];
+        entries[target] = moved;
+        folderEntries = entries;
+    }
+
+    function toggleEntry(index) {
+        var entries = folderEntries.slice();
+        entries[index] = { path: entries[index].path, name: entries[index].name, included: !entries[index].included };
+        folderEntries = entries;
+    }
+
+    function openFor(path, text, isOpenNote) {
+        isFolder = false;
+        notePath = path;
+        noteText = text;
+        useNoteText = isOpenNote;
+        exporter.ensureDefaults();
+        exporter.reload();
+        chooseProfile("");
         resultState = "";
         message = "";
         open();
     }
 
     function updateOutput() {
-        if (profile && notePath.length > 0)
+        if (!profile)
+            return;
+        if (isFolder)
+            outputPath = exporter.defaultFolderOutputPath(folderPath, profile.path);
+        else if (notePath.length > 0)
             outputPath = exporter.defaultOutputPath(notePath, profile.path);
     }
 
@@ -79,6 +135,19 @@ Dialog {
         exporter.lastProfile = profile.path;
         resultState = "";
         message = "";
+        if (isFolder) {
+            exporter.saveFolderSettings(folderPath, folderEntries, folderTitle, folderAuthor, profile.path);
+            var paths = [];
+            for (var i = 0; i < folderEntries.length; ++i) {
+                if (folderEntries[i].included)
+                    paths.push(folderEntries[i].path);
+            }
+            if (!exporter.exportFolder(folderPath, paths, folderTitle, folderAuthor, profile.path, outputPath.trim())) {
+                resultState = "error";
+                message = exporter.error();
+            }
+            return;
+        }
         var started = useNoteText
             ? exporter.exportText(notePath, profile.path, outputPath.trim(), noteText)
             : exporter.exportNote(notePath, profile.path, outputPath.trim());
@@ -213,7 +282,9 @@ Dialog {
             spacing: root.scaled(10)
 
             Label {
-                text: "Export " + root.notePath.substring(root.notePath.lastIndexOf("/") + 1).replace(/\.(md|markdown)$/i, "")
+                text: root.isFolder
+                      ? "Export folder " + root.folderPath.substring(root.folderPath.lastIndexOf("/") + 1)
+                      : "Export " + root.notePath.substring(root.notePath.lastIndexOf("/") + 1).replace(/\.(md|markdown)$/i, "")
                 color: root.textColor
                 elide: Text.ElideRight
                 Layout.fillWidth: true
@@ -230,6 +301,111 @@ Dialog {
                 color: root.darkMode ? "#e8a0a0" : "#a03030"
                 font.family: "IBM Plex Mono"
                 font.pixelSize: root.scaled(12)
+            }
+
+            // ── Folder: title, author, notes and their order ────────────────
+            GridLayout {
+                visible: root.isFolder
+                Layout.fillWidth: true
+                columns: 2
+                columnSpacing: root.scaled(12)
+                rowSpacing: root.scaled(6)
+                SmallLabel { text: "Title" }
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: root.scaled(30)
+                    color: root.fieldColor
+                    border.color: titleField.activeFocus ? root.accentColor : root.borderColor
+                    TextInput {
+                        id: titleField
+                        objectName: "folderTitleField"
+                        anchors.fill: parent
+                        anchors.leftMargin: root.scaled(8)
+                        verticalAlignment: TextInput.AlignVCenter
+                        clip: true
+                        text: root.folderTitle
+                        onTextEdited: root.folderTitle = text
+                        color: root.textColor
+                        font.family: "IBM Plex Mono"
+                        font.pixelSize: root.scaled(12)
+                    }
+                }
+                SmallLabel { text: "Author" }
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: root.scaled(30)
+                    color: root.fieldColor
+                    border.color: authorField.activeFocus ? root.accentColor : root.borderColor
+                    TextInput {
+                        id: authorField
+                        anchors.fill: parent
+                        anchors.leftMargin: root.scaled(8)
+                        verticalAlignment: TextInput.AlignVCenter
+                        clip: true
+                        text: root.folderAuthor
+                        onTextEdited: root.folderAuthor = text
+                        color: root.textColor
+                        font.family: "IBM Plex Mono"
+                        font.pixelSize: root.scaled(12)
+                    }
+                }
+            }
+
+            SmallLabel {
+                visible: root.isFolder
+                Layout.topMargin: root.scaled(4)
+                text: "Notes, in order: " + root.includedCount + " of " + root.folderEntries.length
+                      + " included. Each note's header is dropped; its title becomes a heading."
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
+            }
+
+            ListView {
+                id: entryList
+                objectName: "folderEntries"
+                visible: root.isFolder
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(contentHeight, root.scaled(220))
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                model: root.folderEntries
+                delegate: RowLayout {
+                    required property var modelData
+                    required property int index
+                    width: entryList.width
+                    spacing: root.scaled(10)
+                    Label {
+                        text: modelData.included ? "\u2611" : "\u2610"
+                        color: modelData.included ? root.accentColor : root.mutedColor
+                        font.pixelSize: root.scaled(15)
+                        MouseArea {
+                            anchors.fill: parent
+                            anchors.margins: -root.scaled(4)
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.toggleEntry(index)
+                        }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: modelData.name
+                        elide: Text.ElideMiddle
+                        color: modelData.included ? root.textColor : root.mutedColor
+                        font.family: "IBM Plex Mono"
+                        font.pixelSize: root.scaled(12)
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.toggleEntry(index)
+                        }
+                    }
+                    TextButton { text: "\u2191"; enabled: index > 0; onClicked: root.moveEntry(index, -1) }
+                    TextButton {
+                        text: "\u2193"
+                        enabled: index < root.folderEntries.length - 1
+                        onClicked: root.moveEntry(index, 1)
+                    }
+                }
             }
 
             // ── Profile ─────────────────────────────────────────────────────
@@ -432,7 +608,7 @@ Dialog {
                 textScale: root.textScale
                 activeColor: root.accentColor
                 enabled: !exporter.busy && exporter.pandocAvailable && root.profile !== null
-                         && root.outputPath.trim().length > 0
+                         && root.outputPath.trim().length > 0 && (!root.isFolder || root.includedCount > 0)
                 onClicked: root.runExport()
             }
         }
