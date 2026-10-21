@@ -1,4 +1,4 @@
-# Maintainer: Matthew Smith <mcsmith84@gmail.com>
+# Maintainer: Matthew Smith <45048825+mcsmith3@users.noreply.github.com>
 #
 # Builds OmaZettel from this checkout: ./bin/install (or makepkg -fsi here).
 # For a release from the repository instead, set
