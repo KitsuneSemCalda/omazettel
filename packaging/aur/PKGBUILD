@@ -1,0 +1,37 @@
+# Maintainer: Matthew Smith <45048825+mcsmith3@users.noreply.github.com>
+
+pkgname=omazettel
+pkgver=0.6.1
+pkgrel=1
+pkgdesc='Zettelkasten notes for Omarchy in plain Markdown: wiki links, backlinks, tags, templates, pandoc export and git sync'
+arch=('x86_64' 'aarch64')
+url='https://github.com/mcsmith3/omazettel'
+license=('GPL-3.0-or-later' 'MIT')
+depends=('gcc-libs' 'glibc' 'hicolor-icon-theme' 'qt6-base>=6.6' 'qt6-declarative>=6.6' 'xdg-desktop-portal')
+optdepends=('ttf-jetbrains-mono-nerd: the monospace font Omarchy uses (any monospace font works)'
+            'xdg-desktop-portal-gtk: file and folder pickers outside Omarchy'
+            'pandoc-cli: export to PDF, Word, OpenDocument, HTML and more'
+            'texlive-xetex: PDF export with any font and Unicode text'
+            'texlive-latex: PDF export with pdflatex'
+            'git: version history and sync'
+            'github-cli: create a private GitHub repository for sync'
+            'libreoffice-fresh: edit Word and OpenDocument reference documents')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/mcsmith3/omazettel/archive/refs/tags/omazettel-v$pkgver.tar.gz")
+sha256sums=('d3086c81a914cd6d0d7f57a3080f990ddaa57be5e86dc9ee1d854fef67be0bce')
+
+build() {
+  cd "$pkgname-omazettel-v$pkgver"
+  ./bin/build
+}
+
+package() {
+  cd "$pkgname-omazettel-v$pkgver"
+  install -Dm755 build/omazettel "$pkgdir/usr/bin/omazettel"
+  install -Dm644 pkgbuild/omazettel.desktop "$pkgdir/usr/share/applications/omazettel.desktop"
+  install -Dm644 pkgbuild/omazettel.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/omazettel.svg"
+  install -Dm644 themed/omazettel.toml.tpl "$pkgdir/usr/share/$pkgname/themed/omazettel.toml.tpl"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 LICENSES/MIT-omawrite.txt "$pkgdir/usr/share/licenses/$pkgname/MIT-omawrite.txt"
+  install -Dm644 THIRD-PARTY-NOTICES.md "$pkgdir/usr/share/licenses/$pkgname/THIRD-PARTY-NOTICES.md"
+}

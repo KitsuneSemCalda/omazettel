@@ -1,0 +1,27 @@
+pkgbase = omazettel
+	pkgdesc = Zettelkasten notes for Omarchy in plain Markdown: wiki links, backlinks, tags, templates, pandoc export and git sync
+	pkgver = 0.6.1
+	pkgrel = 1
+	url = https://github.com/mcsmith3/omazettel
+	arch = x86_64
+	arch = aarch64
+	license = GPL-3.0-or-later
+	license = MIT
+	depends = gcc-libs
+	depends = glibc
+	depends = hicolor-icon-theme
+	depends = qt6-base>=6.6
+	depends = qt6-declarative>=6.6
+	depends = xdg-desktop-portal
+	optdepends = ttf-jetbrains-mono-nerd: the monospace font Omarchy uses (any monospace font works)
+	optdepends = xdg-desktop-portal-gtk: file and folder pickers outside Omarchy
+	optdepends = pandoc-cli: export to PDF, Word, OpenDocument, HTML and more
+	optdepends = texlive-xetex: PDF export with any font and Unicode text
+	optdepends = texlive-latex: PDF export with pdflatex
+	optdepends = git: version history and sync
+	optdepends = github-cli: create a private GitHub repository for sync
+	optdepends = libreoffice-fresh: edit Word and OpenDocument reference documents
+	source = omazettel-0.6.1.tar.gz::https://github.com/mcsmith3/omazettel/archive/refs/tags/omazettel-v0.6.1.tar.gz
+	sha256sums = d3086c81a914cd6d0d7f57a3080f990ddaa57be5e86dc9ee1d854fef67be0bce
+
+pkgname = omazettel
