@@ -16,6 +16,8 @@
 #include "exporter.h"
 #include "noteindex.h"
 #include "notetemplates.h"
+#include "sync.h"
+#include "textdiff.h"
 #include "vault.h"
 #include "zettel.h"
 
@@ -1327,6 +1329,291 @@ private slots:
         QVERIFY(backend.citationQueryAt(editor->property("length").toInt()).isEmpty());
     }
 
+
+    // ── Sync ────────────────────────────────────────────────────────────────
+
+    void diffsLines() {
+        const QVariantList diff = TextDiff::lines(QStringLiteral("a\nb\nc\nd"), QStringLiteral("a\nB\nc\nd\ne"));
+        QStringList shown;
+        for (const QVariant &line : diff)
+            shown << line.toMap().value(QStringLiteral("kind")).toString().left(1) + line.toMap().value(QStringLiteral("text")).toString();
+        QCOMPARE(shown, (QStringList{QStringLiteral("sa"), QStringLiteral("rb"), QStringLiteral("aB"),
+                                     QStringLiteral("sc"), QStringLiteral("sd"), QStringLiteral("ae")}));
+        QCOMPARE(TextDiff::counts(diff), (QPair<int, int>(2, 1)));
+        QCOMPARE(TextDiff::lines(QStringLiteral("same"), QStringLiteral("same")).size(), 1);
+    }
+
+    void recognisesConflictCopies() {
+        QString tool;
+        QCOMPARE(Zettel::conflictOriginal(QStringLiteral("Plan.sync-conflict-20261021-101010-ABCDEFG.md"), &tool), QStringLiteral("Plan.md"));
+        QCOMPARE(tool, QStringLiteral("Syncthing"));
+        QCOMPARE(Zettel::conflictOriginal(QStringLiteral("My plan (conflicted copy 2026-10-21 101010).md"), &tool), QStringLiteral("My plan.md"));
+        QCOMPARE(tool, QStringLiteral("Nextcloud"));
+        QCOMPARE(Zettel::conflictOriginal(QStringLiteral("Plan (Matt's conflicted copy 2026-10-21).md"), &tool), QStringLiteral("Plan.md"));
+        QCOMPARE(tool, QStringLiteral("Dropbox"));
+        QCOMPARE(Zettel::conflictOriginal(QStringLiteral("Plan_conflict-20261021-101010.md"), &tool), QStringLiteral("Plan.md"));
+        QCOMPARE(Zettel::conflictOriginal(QStringLiteral("Plan (draft).md")), QString());
+        QCOMPARE(Zettel::conflictOriginal(QStringLiteral("Plan.md")), QString());
+    }
+
+    void resolvesConflictCopies() {
+        QTemporaryDir dir;
+        const QString root = QFileInfo(dir.path()).canonicalFilePath();
+        writeFile(root + QStringLiteral("/Plan.md"), "# Plan\n\nmine\n");
+        writeFile(root + QStringLiteral("/Plan.sync-conflict-20261021-101010-ABCDEFG.md"), "# Plan\n\ntheirs\n");
+        writeFile(root + QStringLiteral("/Idea (conflicted copy 2026-10-21 101010).md"), "other idea\n");
+        writeFile(root + QStringLiteral("/Idea.md"), "idea\n");
+        writeFile(root + QStringLiteral("/Note_conflict-20261021-101010.md"), "copy\n");
+        writeFile(root + QStringLiteral("/Note.md"), "note\n");
+
+        // Copies are not notes of their own.
+        NoteIndex index;
+        index.setRoot(root);
+        index.rescanNow();
+        QCOMPARE(index.noteCount(), 3);
+
+        Sync sync;
+        sync.setRoot(root);
+        QCOMPARE(sync.conflictCopies().size(), 3);
+        QCOMPARE(sync.state(), QStringLiteral("off"));
+        const QString planCopy = root + QStringLiteral("/Plan.sync-conflict-20261021-101010-ABCDEFG.md");
+        const QVariantMap item = sync.conflict(planCopy);
+        QCOMPARE(item.value(QStringLiteral("kind")).toString(), QStringLiteral("copy"));
+        QCOMPARE(item.value(QStringLiteral("mine")).toString(), QStringLiteral("# Plan\n\nmine\n"));
+        QCOMPARE(item.value(QStringLiteral("theirs")).toString(), QStringLiteral("# Plan\n\ntheirs\n"));
+
+        if (!sync.resolve(planCopy, QStringLiteral("theirs")))
+            QSKIP("No trash is available for the temporary folder on this system.");
+        QCOMPARE(readFile(root + QStringLiteral("/Plan.md")), QStringLiteral("# Plan\n\ntheirs\n"));
+        QVERIFY(!QFile::exists(planCopy));
+
+        QVERIFY(sync.resolve(root + QStringLiteral("/Idea (conflicted copy 2026-10-21 101010).md"), QStringLiteral("both")));
+        QCOMPARE(readFile(root + QStringLiteral("/Idea (other version).md")), QStringLiteral("other idea\n"));
+        QCOMPARE(readFile(root + QStringLiteral("/Idea.md")), QStringLiteral("idea\n"));
+
+        QVERIFY(sync.resolve(root + QStringLiteral("/Note_conflict-20261021-101010.md"), QStringLiteral("mine")));
+        QCOMPARE(readFile(root + QStringLiteral("/Note.md")), QStringLiteral("note\n"));
+        QCOMPARE(sync.conflictCopies().size(), 0);
+    }
+
+    void syncsTwoDevicesThroughARemote() {
+        if (QStandardPaths::findExecutable(QStringLiteral("git")).isEmpty())
+            QSKIP("git is not installed.");
+        QTemporaryDir remoteDir, aDir, bDir;
+        const QString remote = QFileInfo(remoteDir.path()).canonicalFilePath();
+        const QString a = QFileInfo(aDir.path()).canonicalFilePath();
+        const QString b = QFileInfo(bDir.path()).canonicalFilePath() + QStringLiteral("/notes");
+        QProcess::execute(QStringLiteral("git"), {QStringLiteral("init"), QStringLiteral("--bare"), QStringLiteral("-b"),
+                                                  QStringLiteral("main"), remote});
+
+        // Device A: turn on history, connect the remote, sync.
+        writeFile(a + QStringLiteral("/Plan.md"), "# Plan\n\nline one\nline two\n");
+        Sync syncA;
+        syncA.setRoot(a);
+        QVERIFY(syncA.enable());
+        QCOMPARE(syncA.state(), QStringLiteral("local"));
+        QVERIFY(syncA.setRemote(remote));
+        QSignalSpy syncedA(&syncA, &Sync::synced);
+        QVERIFY(syncA.syncNow());
+        QVERIFY(syncedA.wait(60000));
+        QVERIFY2(syncedA.last().at(0).toBool(), qPrintable(syncA.message()));
+        QCOMPARE(syncA.state(), QStringLiteral("clean"));
+
+        // Device B: a clone.
+        QProcess::execute(QStringLiteral("git"), {QStringLiteral("clone"), QStringLiteral("-q"), remote, b});
+        Sync syncB;
+        syncB.setRoot(b);
+        QVERIFY(syncB.isRepo());
+        QCOMPARE(syncB.remoteUrl(), remote);
+
+        // A changes a note; B receives it and is told which file changed.
+        writeFile(a + QStringLiteral("/Plan.md"), "# Plan\n\nline one\nline two\nline three\n");
+        syncA.refresh();
+        QCOMPARE(syncA.state(), QStringLiteral("changes"));
+        QVERIFY(syncA.syncNow());
+        QVERIFY(syncedA.wait(60000));
+        QSignalSpy syncedB(&syncB, &Sync::synced);
+        QVERIFY(syncB.syncNow());
+        QVERIFY(syncedB.wait(60000));
+        QVERIFY2(syncedB.last().at(0).toBool(), qPrintable(syncB.message()));
+        QCOMPARE(syncedB.last().at(1).toStringList(), QStringList{b + QStringLiteral("/Plan.md")});
+        QCOMPARE(readFile(b + QStringLiteral("/Plan.md")), QStringLiteral("# Plan\n\nline one\nline two\nline three\n"));
+
+        // Both change the same line: B's sync stops with a conflict.
+        writeFile(a + QStringLiteral("/Plan.md"), "# Plan\n\nline one from A\nline two\nline three\n");
+        QVERIFY(syncA.syncNow());
+        QVERIFY(syncedA.wait(60000));
+        writeFile(b + QStringLiteral("/Plan.md"), "# Plan\n\nline one from B\nline two\nline three\n");
+        QVERIFY(syncB.syncNow());
+        QVERIFY(syncedB.wait(60000));
+        QVERIFY(!syncedB.last().at(0).toBool());
+        QCOMPARE(syncB.state(), QStringLiteral("conflict"));
+        QCOMPARE(syncB.gitConflicts(), QStringList{b + QStringLiteral("/Plan.md")});
+        QVERIFY(!syncB.syncNow());
+
+        const QVariantMap item = syncB.conflict(b + QStringLiteral("/Plan.md"));
+        QVERIFY(item.value(QStringLiteral("mine")).toString().contains(QStringLiteral("from B")));
+        QVERIFY(item.value(QStringLiteral("theirs")).toString().contains(QStringLiteral("from A")));
+
+        // Editing by hand: refused while the markers are there.
+        QVERIFY(readFile(b + QStringLiteral("/Plan.md")).contains(QStringLiteral("<<<<<<<")));
+        QVERIFY(!syncB.resolve(b + QStringLiteral("/Plan.md"), QStringLiteral("edited")));
+
+        // Keep both: B's text stays, A's goes to "Plan (other version).md".
+        QVERIFY(syncB.resolve(b + QStringLiteral("/Plan.md"), QStringLiteral("both")));
+        QCOMPARE(syncB.state(), QStringLiteral("clean"));
+        QVERIFY(readFile(b + QStringLiteral("/Plan.md")).contains(QStringLiteral("from B")));
+        QVERIFY(readFile(b + QStringLiteral("/Plan (other version).md")).contains(QStringLiteral("from A")));
+        QVERIFY(syncB.syncNow());
+        QVERIFY(syncedB.wait(60000));
+        QVERIFY2(syncedB.last().at(0).toBool(), qPrintable(syncB.message()));
+
+        // A gets the outcome.
+        QVERIFY(syncA.syncNow());
+        QVERIFY(syncedA.wait(60000));
+        QVERIFY(readFile(a + QStringLiteral("/Plan.md")).contains(QStringLiteral("from B")));
+        QVERIFY(QFile::exists(a + QStringLiteral("/Plan (other version).md")));
+
+        // History lists the versions, newest first, and can show each.
+        const QVariantList history = syncA.history(a + QStringLiteral("/Plan.md"));
+        QVERIFY(history.size() >= 4);
+        const QVariantMap oldest = history.last().toMap();
+        QCOMPARE(syncA.versionText(oldest.value(QStringLiteral("hash")).toString(),
+                                   oldest.value(QStringLiteral("path")).toString()),
+                 QStringLiteral("# Plan\n\nline one\nline two\n"));
+    }
+
+    void keepsMineOrTheirsInAGitConflict() {
+        if (QStandardPaths::findExecutable(QStringLiteral("git")).isEmpty())
+            QSKIP("git is not installed.");
+        QTemporaryDir remoteDir, aDir, bDir;
+        const QString remote = QFileInfo(remoteDir.path()).canonicalFilePath();
+        const QString a = QFileInfo(aDir.path()).canonicalFilePath();
+        const QString b = QFileInfo(bDir.path()).canonicalFilePath() + QStringLiteral("/n");
+        QProcess::execute(QStringLiteral("git"), {QStringLiteral("init"), QStringLiteral("--bare"), QStringLiteral("-b"), QStringLiteral("main"), remote});
+        writeFile(a + QStringLiteral("/X.md"), "base\n");
+        Sync syncA;
+        syncA.setRoot(a);
+        syncA.enable();
+        syncA.setRemote(remote);
+        QSignalSpy syncedA(&syncA, &Sync::synced);
+        syncA.syncNow();
+        QVERIFY(syncedA.wait(60000));
+        QProcess::execute(QStringLiteral("git"), {QStringLiteral("clone"), QStringLiteral("-q"), remote, b});
+        Sync syncB;
+        syncB.setRoot(b);
+        QSignalSpy syncedB(&syncB, &Sync::synced);
+
+        for (const QString &choice : {QStringLiteral("theirs"), QStringLiteral("mine")}) {
+            writeFile(a + QStringLiteral("/X.md"), ("A " + choice + "\n").toUtf8());
+            syncA.syncNow();
+            QVERIFY(syncedA.wait(60000));
+            writeFile(b + QStringLiteral("/X.md"), ("B " + choice + "\n").toUtf8());
+            syncB.syncNow();
+            QVERIFY(syncedB.wait(60000));
+            QCOMPARE(syncB.state(), QStringLiteral("conflict"));
+            QVERIFY(syncB.resolve(b + QStringLiteral("/X.md"), choice));
+            QCOMPARE(readFile(b + QStringLiteral("/X.md")),
+                     (choice == QLatin1String("mine") ? "B " : "A ") + choice + QStringLiteral("\n"));
+            syncB.syncNow();
+            QVERIFY(syncedB.wait(60000));
+            QVERIFY(syncedB.last().at(0).toBool());
+            syncA.syncNow();
+            QVERIFY(syncedA.wait(60000));
+        }
+
+        // Undo a merge instead.
+        writeFile(a + QStringLiteral("/X.md"), "A again\n");
+        syncA.syncNow();
+        QVERIFY(syncedA.wait(60000));
+        writeFile(b + QStringLiteral("/X.md"), "B again\n");
+        syncB.syncNow();
+        QVERIFY(syncedB.wait(60000));
+        QVERIFY(syncB.abortMerge());
+        QCOMPARE(syncB.state(), QStringLiteral("clean"));
+        QCOMPARE(readFile(b + QStringLiteral("/X.md")), QStringLiteral("B again\n"));
+    }
+
+    void explainsUnreachableRemotes() {
+        if (QStandardPaths::findExecutable(QStringLiteral("git")).isEmpty())
+            QSKIP("git is not installed.");
+        QTemporaryDir dir;
+        const QString root = QFileInfo(dir.path()).canonicalFilePath();
+        writeFile(root + QStringLiteral("/A.md"), "a\n");
+        Sync sync;
+        sync.setRoot(root);
+        sync.enable();
+        sync.setRemote(root + QStringLiteral("/no-such-remote"));
+        QSignalSpy synced(&sync, &Sync::synced);
+        QVERIFY(sync.syncNow());
+        QVERIFY(synced.wait(60000));
+        QVERIFY(!synced.last().at(0).toBool());
+        QCOMPARE(sync.state(), QStringLiteral("error"));
+        QVERIFY(!sync.message().isEmpty());
+        // The change was still saved as a version locally.
+        QCOMPARE(sync.changeCount(), 0);
+    }
+
+    void reloadsTheOpenNoteAfterASync() {
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("Open.md"));
+        writeFile(path, "before\n");
+        Backend backend;
+        QScopedPointer<QObject> editor(makeEditor(backend));
+        backend.open(QUrl::fromLocalFile(path));
+        QSignalSpy external(&backend, &Backend::externalChangeDetected);
+
+        // Unchanged in the editor: reloads quietly.
+        backend.pauseFileWatching();
+        writeFile(path, "after sync\n");
+        QVERIFY(backend.resumeFileWatching());
+        QCOMPARE(editor->property("text").toString(), QStringLiteral("after sync\n"));
+        QTest::qWait(300);
+        QCOMPARE(external.count(), 0);
+
+        // Nothing changed on disk: nothing happens.
+        backend.pauseFileWatching();
+        QVERIFY(!backend.resumeFileWatching());
+
+        // Unsaved edits: asks, as for any outside change.
+        editor->setProperty("text", QStringLiteral("typed during sync\n"));
+        QVERIFY(backend.editorTextChanged());
+        backend.pauseFileWatching();
+        writeFile(path, "from elsewhere\n");
+        QVERIFY(!backend.resumeFileWatching());
+        QCOMPARE(external.count(), 1);
+        QCOMPARE(editor->property("text").toString(), QStringLiteral("typed during sync\n"));
+    }
+
+    void historyDialogRestoresAVersion() {
+        if (QStandardPaths::findExecutable(QStringLiteral("git")).isEmpty())
+            QSKIP("git is not installed.");
+        QTemporaryDir dir;
+        writeFile(dir.filePath(QStringLiteral("Note.md")), "version one\n");
+        Backend backend;
+        Vault vault;
+        QVERIFY(vault.openFolder(dir.path()));
+        QQmlEngine engine;
+        QScopedPointer<QObject> window(loadMain(engine, backend, vault));
+        QVERIFY(m_windowSync->enable());
+        writeFile(dir.filePath(QStringLiteral("Note.md")), "version two\n");
+        QSignalSpy synced(m_windowSync.get(), &Sync::synced);
+        QMetaObject::invokeMethod(window.get(), "syncNotes");
+        QVERIFY(synced.wait(60000));
+        QCOMPARE(m_windowSync->state(), QStringLiteral("local"));
+
+        const QString note = vault.rootPath() + QStringLiteral("/Note.md");
+        QMetaObject::invokeMethod(window.get(), "openHistory", Q_ARG(QVariant, note));
+        auto *history = window->findChild<QObject *>(QStringLiteral("historyDialog"));
+        QCOMPARE(history->property("versions").toList().size(), 2);
+        history->setProperty("versionIndex", 1);
+        QCOMPARE(history->property("versionText").toString(), QStringLiteral("version one\n"));
+        QVERIFY(!history->property("lines").toList().isEmpty());
+        QMetaObject::invokeMethod(history, "restoreRequested", Q_ARG(QString, QStringLiteral("version one\n")));
+        auto *editor = window->findChild<QObject *>(QStringLiteral("sourceEditor"));
+        QCOMPARE(editor->property("text").toString(), QStringLiteral("version one\n"));
+    }
+
     // ── Oma palette ─────────────────────────────────────────────────────────
 
     void omaPaletteSetsTheSurround() {
@@ -1560,6 +1847,9 @@ private:
         m_windowCitations = std::make_unique<Citations>();
         m_windowCitations->setRoot(vault.rootPath());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_windowCitations.get());
+        m_windowSync = std::make_unique<Sync>();
+        m_windowSync->setRoot(vault.rootPath());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_windowSync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         if (!component.isReady()) {
             qWarning() << component.errorString();
@@ -1577,6 +1867,7 @@ private:
     std::unique_ptr<NoteTemplates> m_windowTemplates;
     std::unique_ptr<Exporter> m_windowExporter;
     std::unique_ptr<Citations> m_windowCitations;
+    std::unique_ptr<Sync> m_windowSync;
 };
 
 QTEST_MAIN(NotesTest)

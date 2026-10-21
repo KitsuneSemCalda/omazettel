@@ -58,6 +58,14 @@ struct Heading {
 // The # headings of a note, outside front matter and fenced code.
 QList<Heading> outline(const QString &text);
 
+// Copies sync tools make when two devices change a file at once:
+// Syncthing (Note.sync-conflict-20261021-101010-ABCDEFG.md), Nextcloud and
+// Dropbox (Note (conflicted copy 2026-10-21 101010).md, Note (Matt's
+// conflicted copy 2026-10-21).md) and ownCloud (Note_conflict-20261021-101010.md).
+// Returns the file name of the original ("Note.md"), or "" if fileName is
+// not such a copy; tool names which made it.
+QString conflictOriginal(const QString &fileName, QString *tool = nullptr);
+
 // The inline code spans of a line, as [start, end) pairs.
 QList<QPair<int, int>> codeRanges(const QString &line);
 

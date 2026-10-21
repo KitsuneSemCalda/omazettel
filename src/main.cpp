@@ -8,6 +8,7 @@
 #include <QQuickStyle>
 #include <QUrl>
 #include <QWindow>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QSettings>
 
@@ -18,6 +19,7 @@
 #include "exporter.h"
 #include "noteindex.h"
 #include "notetemplates.h"
+#include "sync.h"
 #include "vault.h"
 
 #define OMAZETTEL_VERSION "0.1.0"
@@ -107,6 +109,19 @@ int main(int argc, char *argv[]) {
     citations.setRoot(vault.rootPath());
     QObject::connect(&vault, &Vault::rootPathChanged, &citations,
                      [&vault, &citations]() { citations.setRoot(vault.rootPath()); });
+    // Sync and version history (git), and synced-folder conflict copies.
+    Sync sync(&app);
+    sync.setRoot(vault.rootPath());
+    QObject::connect(&vault, &Vault::rootPathChanged, &sync,
+                     [&vault, &sync]() { sync.setRoot(vault.rootPath()); });
+    QObject::connect(&noteIndex, &NoteIndex::changed, &sync, [&sync]() {
+        // Conflict copies arrive with the files a sync tool writes.
+        static QElapsedTimer last;
+        if (!last.isValid() || last.elapsed() > 3000) {
+            last.restart();
+            sync.refresh();
+        }
+    });
     QObject::connect(&app, &QGuiApplication::applicationStateChanged, &noteIndex,
                      [&noteIndex](Qt::ApplicationState state) {
                          if (state == Qt::ApplicationActive)
@@ -125,6 +140,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), &noteTemplates);
     engine.rootContext()->setContextProperty(QStringLiteral("exporter"), &exporter);
     engine.rootContext()->setContextProperty(QStringLiteral("citations"), &citations);
+    engine.rootContext()->setContextProperty(QStringLiteral("sync"), &sync);
 
     engine.load(QUrl(QStringLiteral("qrc:/Main.qml")));
     if (engine.rootObjects().isEmpty()) {

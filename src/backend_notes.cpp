@@ -203,3 +203,29 @@ QVariantMap Backend::citationQueryAt(int position) const {
     return {{QStringLiteral("query"), match.captured(1)},
             {QStringLiteral("start"), block.position() + int(match.capturedStart(1))}};
 }
+
+void Backend::pauseFileWatching() {
+    unwatchFiles();
+    holdAutoSave(true);
+}
+
+bool Backend::resumeFileWatching() {
+    holdAutoSave(false);
+    if (!m_fileUrl.isLocalFile())
+        return false;
+    if (diskMatchesKnownContents()) {
+        watchCurrentFile();
+        return false;
+    }
+    const bool exists = QFileInfo::exists(m_fileUrl.toLocalFile());
+    if (exists && !m_modified) {
+        const QString status = m_status;
+        open(m_fileUrl);
+        setStatus(QStringLiteral("Updated %1 from sync").arg(fileName()));
+        Q_UNUSED(status);
+        return true;
+    }
+    watchCurrentFile();
+    reportExternalChange(!exists);
+    return false;
+}

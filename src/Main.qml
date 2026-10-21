@@ -477,6 +477,52 @@ ApplicationWindow {
         exportDialog.openFor(path, isOpen ? editor.text : "", isOpen);
     }
 
+    // ── Sync ────────────────────────────────────────────────────────────────
+
+    // Saves the open note, then syncs; the open note is reloaded afterwards
+    // if the sync changed it.
+    function syncNotes() {
+        if (!sync.isRepo || sync.busy)
+            return;
+        backend.flushAutoSave();
+        backend.pauseFileWatching();
+        if (!sync.syncNow()) {
+            backend.resumeFileWatching();
+            if (sync.lastError().length > 0)
+                backend.showStatus(sync.lastError());
+        }
+    }
+
+    function afterFilesChanged() {
+        var caret = editor.cursorPosition;
+        if (backend.resumeFileWatching())
+            editor.cursorPosition = Math.min(caret, editor.length);
+        noteIndex.scheduleRescan();
+    }
+
+    function resolveConflict(path, choice) {
+        if (choice === "edited" && path === currentPath() && !backend.flushAutoSave())
+            backend.save();
+        backend.pauseFileWatching();
+        var ok = sync.resolve(path, choice);
+        afterFilesChanged();
+        if (!ok) {
+            backend.showStatus(sync.lastError());
+            return;
+        }
+        backend.showStatus(sync.gitConflicts.length > 0 ? "Resolved; " + sync.gitConflicts.length + " left."
+                                                        : "Resolved.");
+        if (sync.gitConflicts.length === 0 && sync.remoteUrl.length > 0 && choice !== "copy")
+            syncNotes();
+    }
+
+    function openHistory(path) {
+        if (path !== currentPath())
+            openNote(vault.urlForPath(path));
+        if (currentPath() === path)
+            historyDialog.openFor(path, editor.text);
+    }
+
     function chooseFolder() {
         if (vault.isOpen)
             folderDialog.currentFolder = vault.urlForPath(vault.rootPath);
@@ -682,6 +728,11 @@ ApplicationWindow {
     Shortcut {
         sequence: "Ctrl+\\"
         onActivated: vault.sidebarVisible = !vault.sidebarVisible
+    }
+
+    Shortcut {
+        sequence: "Ctrl+Alt+S"
+        onActivated: win.syncNotes()
     }
 
     Shortcut {
@@ -913,6 +964,9 @@ ApplicationWindow {
         onExportRequested: function(path) { win.exportNote(path); }
         onExportFolderRequested: function(path) { exportDialog.openForFolder(path, noteTemplates.author); }
         onCitationsRequested: citationsDialog.open()
+        onSyncDialogRequested: syncDialog.open()
+        onSyncNowRequested: win.syncNotes()
+        onHistoryRequested: function(path) { win.openHistory(path); }
         onSearchResultRequested: function(path, position, length) { win.openSearchResult(path, position, length); }
         onEditTemplateRequested: function(path) { win.openNote(vault.urlForPath(path)); }
         onAuthorRequested: nameDialog.askForName("Author name", noteTemplates.author, "Save",
@@ -970,6 +1024,88 @@ ApplicationWindow {
         onClosed: editor.forceActiveFocus()
     }
 
+    SyncDialog {
+        id: syncDialog
+        darkMode: win.darkMode
+        textScale: win.textScale
+        textColor: win.textColor
+        mutedColor: win.mutedColor
+        accentColor: backend.themeAccent
+        raisedColor: win.raisedColor
+        fieldColor: win.fieldColor
+        borderColor: win.borderColor
+        containerWidth: win.width
+        containerHeight: win.height
+        onSyncRequested: win.syncNotes()
+        onCompareRequested: function(path) { conflictDialog.openFor(path); }
+        onEditConflictRequested: function(path) { close(); win.openNote(vault.urlForPath(path)); }
+        onResolveRequested: function(path, choice) { win.resolveConflict(path, choice); }
+        onClosed: editor.forceActiveFocus()
+    }
+
+    ConflictDialog {
+        id: conflictDialog
+        darkMode: win.darkMode
+        textScale: win.textScale
+        textColor: win.textColor
+        mutedColor: win.mutedColor
+        accentColor: backend.themeAccent
+        raisedColor: win.raisedColor
+        borderColor: win.borderColor
+        containerWidth: win.width
+        containerHeight: win.height
+        onResolveRequested: function(path, choice) { win.resolveConflict(path, choice); }
+    }
+
+    HistoryDialog {
+        id: historyDialog
+        darkMode: win.darkMode
+        textScale: win.textScale
+        textColor: win.textColor
+        mutedColor: win.mutedColor
+        accentColor: backend.themeAccent
+        raisedColor: win.raisedColor
+        borderColor: win.borderColor
+        containerWidth: win.width
+        containerHeight: win.height
+        onRestoreRequested: function(text) {
+            EditorMutations.replaceRange(editor, 0, editor.length, text);
+            editor.cursorPosition = 0;
+            backend.showStatus("Restored an earlier version; Ctrl+Z takes it back.");
+        }
+        onClosed: editor.forceActiveFocus()
+    }
+
+    Connections {
+        target: sync
+        function onSynced(ok, updatedFiles) {
+            win.afterFilesChanged();
+            backend.showStatus(sync.message);
+            if (sync.state === "conflict")
+                syncDialog.open();
+        }
+        function onAutoSyncDue() {
+            win.syncNotes();
+        }
+    }
+
+    // Sync shortly after starting, when a remote is set up.
+    Timer {
+        interval: 1500
+        running: true
+        onTriggered: {
+            if (sync.isRepo && sync.remoteUrl.length > 0 && sync.autoSync)
+                win.syncNotes();
+        }
+    }
+
+    // Keep the sync status's change count current after saves.
+    Timer {
+        id: syncRefreshDelay
+        interval: 2000
+        onTriggered: sync.refresh()
+    }
+
     CitationsDialog {
         id: citationsDialog
         darkMode: win.darkMode
@@ -1014,6 +1150,8 @@ ApplicationWindow {
         function onSaveSucceeded() {
             noteIndex.updateFile(win.currentPath());
             win.createMissingLinkedNotes();
+            if (sync.isRepo)
+                syncRefreshDelay.restart();
         }
     }
 

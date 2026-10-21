@@ -26,6 +26,7 @@
 #include "exporter.h"
 #include "noteindex.h"
 #include "notetemplates.h"
+#include "sync.h"
 #include "vault.h"
 
 #include <memory>
@@ -75,6 +76,7 @@ private slots:
         m_noteTemplates = std::make_unique<NoteTemplates>();
         m_exporter = std::make_unique<Exporter>();
         m_citations = std::make_unique<Citations>();
+        m_sync = std::make_unique<Sync>();
     }
 
     void countsWords() {
@@ -274,6 +276,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -301,6 +304,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -353,6 +357,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -436,6 +441,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -484,6 +490,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -556,6 +563,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -609,6 +617,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -660,6 +669,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -701,6 +711,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -730,6 +741,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -761,6 +773,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -810,6 +823,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -893,6 +907,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -976,6 +991,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -1058,6 +1074,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -1657,6 +1674,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -1852,6 +1870,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -1924,6 +1943,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -1971,6 +1991,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -2006,6 +2027,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -2041,6 +2063,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -2087,6 +2110,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -2168,6 +2192,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -2321,6 +2346,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -2553,6 +2579,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -2622,6 +2649,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -2664,6 +2692,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> object(component.create());
@@ -2702,6 +2731,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -2746,6 +2776,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -2783,6 +2814,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QScopedPointer<QObject> object(component.create());
         QVERIFY2(object, qPrintable(component.errorString()));
@@ -3158,6 +3190,7 @@ private slots:
         engine.rootContext()->setContextProperty(QStringLiteral("noteTemplates"), m_noteTemplates.get());
         engine.rootContext()->setContextProperty(QStringLiteral("exporter"), m_exporter.get());
         engine.rootContext()->setContextProperty(QStringLiteral("citations"), m_citations.get());
+        engine.rootContext()->setContextProperty(QStringLiteral("sync"), m_sync.get());
         QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> window(component.create());
@@ -3636,6 +3669,7 @@ private:
     std::unique_ptr<NoteTemplates> m_noteTemplates;
     std::unique_ptr<Exporter> m_exporter;
     std::unique_ptr<Citations> m_citations;
+    std::unique_ptr<Sync> m_sync;
 };
 
 QTEST_MAIN(OmaZettelTest)

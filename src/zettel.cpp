@@ -306,4 +306,26 @@ QList<Heading> outline(const QString &text) {
     return headings;
 }
 
+QString conflictOriginal(const QString &fileName, QString *tool) {
+    static const QList<QPair<QRegularExpression, QString>> patterns{
+        {QRegularExpression(QStringLiteral("^(.+)\\.sync-conflict-\\d{8}-\\d{6}-[A-Z0-9]{7}(\\.[^.]+)?$")),
+         QStringLiteral("Syncthing")},
+        {QRegularExpression(QStringLiteral("^(.+) \\(conflicted copy \\d{4}-\\d{2}-\\d{2}[^)]*\\)(\\.[^.]+)?$")),
+         QStringLiteral("Nextcloud")},
+        {QRegularExpression(QStringLiteral("^(.+) \\([^)]*'s conflicted copy[^)]*\\)(\\.[^.]+)?$")),
+         QStringLiteral("Dropbox")},
+        {QRegularExpression(QStringLiteral("^(.+)_conflict-\\d{8}-\\d{6}(\\.[^.]+)?$")),
+         QStringLiteral("ownCloud")},
+    };
+    for (const auto &[pattern, name] : patterns) {
+        const QRegularExpressionMatch match = pattern.match(fileName);
+        if (match.hasMatch()) {
+            if (tool)
+                *tool = name;
+            return match.captured(1) + match.captured(2);
+        }
+    }
+    return QString();
+}
+
 }

@@ -113,6 +113,9 @@ QHash<QString, NoteIndex::Note> NoteIndex::scan(const QString &root) {
         const QString path = it.next();
         if (path.mid(root.size()).contains(QLatin1String("/.")))
             continue;
+        // A sync tool's conflict copy is not a note of its own; Sync lists it.
+        if (!Zettel::conflictOriginal(QFileInfo(path).fileName()).isEmpty())
+            continue;
         notes.insert(path, readNote(path));
     }
     return notes;
@@ -120,7 +123,8 @@ QHash<QString, NoteIndex::Note> NoteIndex::scan(const QString &root) {
 
 bool NoteIndex::covers(const QString &path) const {
     return !m_root.isEmpty() && path.startsWith(m_root + QLatin1Char('/')) && isNote(path)
-        && !path.mid(m_root.size()).contains(QLatin1String("/."));
+        && !path.mid(m_root.size()).contains(QLatin1String("/."))
+        && Zettel::conflictOriginal(QFileInfo(path).fileName()).isEmpty();
 }
 
 void NoteIndex::updateFile(const QString &path) {

@@ -12,6 +12,8 @@ HEADERS += \
     src/exporter.h \
     src/noteindex.h \
     src/notetemplates.h \
+    src/sync.h \
+    src/textdiff.h \
     src/systemtheme.h \
     src/vault.h \
     src/zettel.h
@@ -27,6 +29,8 @@ SOURCES += \
     src/exporter.cpp \
     src/noteindex.cpp \
     src/notetemplates.cpp \
+    src/sync.cpp \
+    src/textdiff.cpp \
     src/systemtheme.cpp \
     src/vault.cpp \
     src/zettel.cpp

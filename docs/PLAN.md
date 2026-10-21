@@ -147,8 +147,14 @@ After version 1, in rough order of value:
   `.omazettel/citations.yaml`, reload on change), citeproc on export,
   `[@` completion and citation highlighting, `CitationsDialog.qml`;
   `Backend::omaPalette` and chrome colours in Main.qml.
-- **Next (requested 2026-10-21):** storage and collaboration: where notes
-  live (local, synced, cloud) and editing by more than one person.
+- **Sync and history (done, 2026-10-21):** `src/sync.*` (git: enable,
+  remote, gh repo create, background commit/fetch/merge/push with no
+  prompts, conflicts with mine/theirs/both/edited, abort, per-note history
+  following renames; synced-folder conflict copies from Syncthing, Nextcloud,
+  Dropbox and ownCloud), `src/textdiff.*`, `Zettel::conflictOriginal`,
+  `Backend::pauseFileWatching/resumeFileWatching` (quiet reload after sync),
+  `SyncDialog`, `ConflictDialog`, `HistoryDialog`, `DiffView`, the sidebar's
+  status line, Ctrl+Alt+S. Real-time co-editing left out on purpose.
 
 ## Export templates (designed 2026-10-20, built in Phase 3)
 

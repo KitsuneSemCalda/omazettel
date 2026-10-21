@@ -10,8 +10,47 @@ Omarchy project.
 > **Status: early development (0.1.0).** Working: the notes folder sidebar,
 > `[[wiki links]]`, backlinks, tags, note templates, pandoc export with
 > custom templates, folder export, citations, search across notes and an
-> outline, in the shared Oma colour palette. Still to come: storage and
-> collaboration, then polish and packaging. See `docs/PLAN.md`.
+> outline, in the shared Oma colour palette, with git sync, version history
+> and conflict handling. Still to come: polish and packaging. See `docs/PLAN.md`.
+
+## Sync and history
+
+Notes stay plain files in a folder on this computer. To keep them on other
+devices, or share them with a few people taking turns, use either:
+
+**Git, built in** (… menu → Sync & history…, or click the status line at the
+bottom of the sidebar):
+
+- **Turn on version history** saves every version of every note with git.
+  With no remote, that is version history on this computer only.
+- **Add a remote** to sync: any git address, or **Create** a private GitHub
+  repository with the GitHub CLI (`gh`) in one click. Git uses your normal
+  login (`gh auth login` then `gh auth setup-git`, or an SSH key) and never
+  stops to ask for a password; a missing login shows as an error with a hint.
+- **Syncing** saves this device's changes as a version, merges in the other
+  side's (never rewriting history), and sends this side's. It runs when
+  OmaZettel starts, every 5 minutes (adjustable), and on Ctrl+Alt+S or the ⟳
+  button. The open note is saved first, and reloads quietly if the sync
+  changed it (you are asked only if you were typing at the same moment).
+- **Conflicts**: when a note changed on both sides since the last sync, the
+  sync stops and lists it. **Compare…** shows both versions line by line;
+  choose **Keep mine**, **Keep theirs** or **Keep both** (theirs is saved
+  beside it as "Note (other version).md"), or **Edit** the note to combine the
+  two and click **Done editing**. **Undo the merge** leaves everything as it
+  was here. The sync then finishes and sends the result.
+- **History** (right-click a note → History…): every saved version, newest
+  first, compared with the note as it is now. **Restore this version** puts it
+  back in the editor (Ctrl+Z takes it back).
+
+**Syncthing, Nextcloud, Dropbox or ownCloud**: point it at the notes folder.
+When a note changes on two devices at once, those tools leave a conflict copy
+(`Note.sync-conflict-…md`, `Note (conflicted copy …).md`, …). OmaZettel keeps
+copies out of links, search and tags, lists them in Sync & history, and
+resolves them the same way: keep the original, keep the copy (the original
+goes to the trash) or keep both.
+
+Nothing here edits a note live alongside someone else; for that, people take
+turns and sync.
 
 ## Look
 
@@ -180,6 +219,7 @@ There is no package release yet. Build from source as described in
 - `Ctrl+Shift+D` opens today's daily note.
 - `Ctrl+Shift+E` exports the note with pandoc.
 - `Ctrl+Shift+F` searches all notes.
+- `Ctrl+Alt+S` syncs now (or saves a version, without a remote).
 - `Ctrl+\` shows or hides the notes sidebar.
 - `Ctrl+Z`, `Ctrl+Shift+Z`, and `Ctrl+Y` handle undo and redo.
 - `Super+F` toggles fullscreen. Qt maps this key as `Meta+F`.

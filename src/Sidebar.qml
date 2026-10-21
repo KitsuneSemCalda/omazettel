@@ -44,6 +44,9 @@ Rectangle {
     signal exportRequested(string path)
     signal exportFolderRequested(string path)
     signal citationsRequested()
+    signal syncDialogRequested()
+    signal syncNowRequested()
+    signal historyRequested(string path)
     signal editTemplateRequested(string path)
     signal authorRequested()
 
@@ -221,7 +224,7 @@ Rectangle {
         objectName: "searchView"
         visible: vault.isOpen && root.mode === "search"
         anchors.top: tabs.bottom
-        anchors.bottom: errorLabel.visible ? errorLabel.top : parent.bottom
+        anchors.bottom: errorLabel.visible ? errorLabel.top : syncBar.top
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.topMargin: root.scaled(12)
@@ -429,7 +432,7 @@ Rectangle {
         objectName: "tagList"
         visible: vault.isOpen && root.mode === "tags"
         anchors.top: tabs.bottom
-        anchors.bottom: errorLabel.visible ? errorLabel.top : parent.bottom
+        anchors.bottom: errorLabel.visible ? errorLabel.top : syncBar.top
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.topMargin: root.scaled(12)
@@ -594,6 +597,11 @@ Rectangle {
             onTriggered: root.exportFolderRequested(vault.rootPath)
         }
         MenuItem {
+            text: "Sync & history…"
+            enabled: vault.isOpen
+            onTriggered: root.syncDialogRequested()
+        }
+        MenuItem {
             text: "Citations…"
             enabled: vault.isOpen
             onTriggered: root.citationsRequested()
@@ -732,7 +740,7 @@ Rectangle {
         objectName: "notesTree"
         visible: vault.isOpen && root.mode === "files"
         anchors.top: tabs.bottom
-        anchors.bottom: errorLabel.visible ? errorLabel.top : parent.bottom
+        anchors.bottom: errorLabel.visible ? errorLabel.top : syncBar.top
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.topMargin: root.scaled(10)
@@ -895,6 +903,12 @@ Rectangle {
             onTriggered: itemMenu.isFolder ? root.exportFolderRequested(itemMenu.path)
                                            : root.exportRequested(itemMenu.path)
         }
+        MenuItem {
+            text: "History…"
+            visible: !itemMenu.isFolder
+            height: visible ? implicitHeight : 0
+            onTriggered: root.historyRequested(itemMenu.path)
+        }
         MenuSeparator {}
         MenuItem {
             text: "Rename…"
@@ -906,13 +920,105 @@ Rectangle {
         }
     }
 
+    // ── Sync status ─────────────────────────────────────────────────────────
+    Rectangle {
+        id: syncBar
+        objectName: "syncBar"
+        visible: vault.isOpen
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.rightMargin: 1
+        anchors.bottom: parent.bottom
+        height: visible ? root.scaled(30) : 0
+        color: "transparent"
+
+        readonly property string state: sync.state
+        readonly property color dot: state === "conflict" || state === "error" ? (root.darkMode ? "#e8a0a0" : "#a03030")
+                                   : state === "changes" ? "#FBBF24"
+                                   : state === "clean" ? "#34D399" : root.mutedColor
+
+        function ago(date) {
+            if (!date || isNaN(date.getTime()))
+                return "";
+            var seconds = Math.round((Date.now() - date.getTime()) / 1000);
+            if (seconds < 60) return "just now";
+            if (seconds < 3600) return Math.round(seconds / 60) + " min ago";
+            if (seconds < 86400) return Math.round(seconds / 3600) + " h ago";
+            return date.toLocaleDateString();
+        }
+
+        // Keeps "5 min ago" current.
+        property int tick: 0
+        Timer { interval: 30000; running: syncBar.visible; repeat: true; onTriggered: syncBar.tick++ }
+
+        Rectangle {
+            anchors.top: parent.top
+            width: parent.width
+            height: 1
+            color: root.hairlineColor
+        }
+        Rectangle {
+            id: syncDot
+            x: root.scaled(14)
+            anchors.verticalCenter: parent.verticalCenter
+            width: root.scaled(7)
+            height: width
+            radius: width / 2
+            color: syncBar.dot
+        }
+        Label {
+            objectName: "syncBarText"
+            anchors.left: syncDot.right
+            anchors.leftMargin: root.scaled(8)
+            anchors.right: syncNow.left
+            anchors.rightMargin: root.scaled(8)
+            anchors.verticalCenter: parent.verticalCenter
+            elide: Text.ElideRight
+            text: {
+                var tick = syncBar.tick;
+                var s = syncBar.state;
+                if (sync.busy) return "Syncing…";
+                if (s === "off") return "History off";
+                if (s === "conflict") return "Conflicts to resolve";
+                if (s === "error") return "Sync failed";
+                if (s === "local") return sync.changeCount > 0 ? sync.changeCount + " unsaved in history" : "History on";
+                var when = syncBar.ago(sync.lastSync);
+                if (s === "changes") return sync.changeCount + (sync.changeCount === 1 ? " change" : " changes")
+                                            + (when.length > 0 ? " · synced " + when : "");
+                return when.length > 0 ? "Synced " + when : "Up to date";
+            }
+            color: root.mutedColor
+            font.family: "IBM Plex Mono"
+            font.pixelSize: root.scaled(11)
+        }
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.syncDialogRequested()
+        }
+        IconButton {
+            id: syncNow
+            objectName: "syncNowButton"
+            anchors.right: parent.right
+            anchors.rightMargin: root.scaled(12)
+            anchors.verticalCenter: parent.verticalCenter
+            visible: sync.isRepo && !sync.busy && syncBar.state !== "conflict"
+            iconName: "sync"
+            iconColor: root.mutedColor
+            hoverColor: root.textColor
+            textScale: root.textScale * 0.9
+            tooltip: sync.remoteUrl.length > 0 ? "Sync now (Ctrl+Alt+S)" : "Save a version now (Ctrl+Alt+S)"
+            onClicked: root.syncNowRequested()
+        }
+    }
+
     Label {
         id: errorLabel
         objectName: "sidebarError"
         visible: vault.lastError.length > 0
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.bottom: parent.bottom
+        anchors.bottom: syncBar.top
         padding: root.scaled(12)
         text: vault.lastError
         wrapMode: Text.Wrap

@@ -65,6 +65,13 @@ Item {
                     ctx.beginPath(); ctx.arc(x, 8, 1.2, 0, Math.PI * 2); ctx.fill();
                 });
                 return;
+            } else if (name === "sync") {
+                // A circle of two arrows.
+                ctx.arc(8, 8, 5, Math.PI * 1.15, Math.PI * 1.95);
+                ctx.moveTo(12.6, 3.6); ctx.lineTo(12.9, 6.4); ctx.lineTo(10.1, 6.2);
+                ctx.moveTo(13, 8);
+                ctx.arc(8, 8, 5, Math.PI * 0.15, Math.PI * 0.95, false);
+                ctx.moveTo(3.4, 12.4); ctx.lineTo(3.1, 9.6); ctx.lineTo(5.9, 9.8);
             } else if (name === "chevron-right") {
                 ctx.moveTo(6, 4); ctx.lineTo(10, 8); ctx.lineTo(6, 12);
             } else if (name === "chevron-down") {

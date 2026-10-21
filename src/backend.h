@@ -120,6 +120,12 @@ public:
     // The citation key being typed before position inside [...@, or {}.
     Q_INVOKABLE QVariantMap citationQueryAt(int position) const;
     Q_INVOKABLE void showStatus(const QString &status) { setStatus(status); }
+    // Around a sync, which may rewrite the open note: stop watching and
+    // saving it, then pick up what is on disk. Resuming reloads quietly when
+    // the note had no unsaved edits (returns true), and asks as usual when it
+    // had. Callers restore the caret after a reload.
+    Q_INVOKABLE void pauseFileWatching();
+    Q_INVOKABLE bool resumeFileWatching();
     // The #heading of the [[link]] at a position, or "".
     Q_INVOKABLE QString wikiHeadingAt(int position) const;
     // The open note's headings: [{level, text, position}].

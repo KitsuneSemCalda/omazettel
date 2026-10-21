@@ -24,6 +24,7 @@ Dialog {
         { key: "Ctrl+Shift+D", desc: "Today's Daily Note" },
         { key: "Ctrl+Shift+E", desc: "Export with pandoc" },
         { key: "Ctrl+Shift+F", desc: "Search All Notes" },
+        { key: "Ctrl+Alt+S", desc: "Sync Now" },
         { key: "Ctrl+\\", desc: "Show or Hide Sidebar" },
         { key: "Ctrl+Shift+B", desc: "Show or Hide Backlinks & Tags" },
         { key: "Ctrl+Click / Ctrl+Enter", desc: "Follow Link" },
