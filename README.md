@@ -1,319 +1,416 @@
 # OmaZettel
 
-A Zettelkasten notes app for Omarchy that works on a folder of plain Markdown
-files. It's built with Qt Quick and C++ and follows your Omarchy theme.
+**Zettelkasten notes for [Omarchy](https://omarchy.org), in plain Markdown files.**
+
+OmaZettel is a native Qt/QML notes app for linking ideas: `[[wiki links]]`,
+backlinks, tags, note templates, search, pandoc export with citations, and git
+sync with version history. Your notes stay ordinary `.md` files in a folder you
+choose, so VS Code, Neovim, git and pandoc keep working on them too. Its colors
+follow your Omarchy theme, the way Neovim and VS Code do.
+
+![A note with its outline, tags and backlinks (Tokyo Night theme)](docs/screenshots/notes.png)
 
 OmaZettel is an independent fork of [Omawrite](https://github.com/omacom/omawrite)
-by David Heinemeier Hansson. It is not made or endorsed by Omacom or the
-Omarchy project.
+by David Heinemeier Hansson, extended into a notes system. It is not made or
+endorsed by Omacom or the Omarchy project.
 
-![A note with its outline, tags and backlinks](docs/screenshots/notes.png)
+> **Status: 0.6.0, early.** Everything below works and is covered by tests, but
+> OmaZettel is young: expect rough edges, and keep your notes folder in git or
+> another backup. Bug reports and ideas are welcome in the issues.
 
-> **Status: 0.5.0, early but complete.** Working: the notes folder sidebar,
-> `[[wiki links]]`, backlinks, tags, note templates, pandoc export with
-> custom templates, folder export, citations, search across notes and an
-> outline, in the shared Oma colour palette, with git sync, version history
-> and conflict handling. Still to come: polish and packaging. See `docs/PLAN.md`.
+## Contents
 
-## Sync and history
+- [Features](#features)
+- [Install](#install)
+- [Getting started](#getting-started)
+- [Writing](#writing)
+- [Links, backlinks and tags](#links-backlinks-and-tags)
+- [Note templates](#note-templates)
+- [Search and outline](#search-and-outline)
+- [Export](#export)
+- [Citations](#citations)
+- [Sync and history](#sync-and-history)
+- [Colors and themes](#colors-and-themes)
+- [Keyboard shortcuts](#keyboard-shortcuts)
+- [Where things are kept](#where-things-are-kept)
+- [Building from source](#building-from-source)
+- [Contributing](#contributing)
+- [Credits and license](#credits-and-license)
 
-Notes stay plain files in a folder on this computer. To keep them on other
-devices, or share them with a few people taking turns, use either:
+## Features
 
-**Git, built in** (… menu → Sync & history…, or click the status line at the
-bottom of the sidebar):
+- **A notes folder, not a database.** A sidebar of your folders and Markdown
+  notes: create, rename, move by drag and drop, move to trash.
+- **Links that keep working.** `[[Note]]`, `[[folder/Note]]`, `[[Note#Heading]]`
+  and `[[Note|label]]`, with completion as you type `[[`. Following a link to a
+  note that doesn't exist creates it. Renaming or moving a note rewrites every
+  link to it.
+- **Backlinks, tags and an outline** for the open note in a side panel, and a
+  Tags view of the whole folder.
+- **Note templates** (Note, Meeting, Daily, Literature note, or your own) with
+  placeholders and a pandoc YAML header, so notes export with the right title,
+  author and date. Ctrl+Shift+D opens today's daily note.
+- **Search across notes** with phrases and tag filters, ignoring case and
+  accents, plus **Ctrl+O** to jump to any note by name and a **command palette**
+  (Ctrl+Shift+P).
+- **Export with pandoc** to PDF, Word, OpenDocument, HTML, LaTeX and anything
+  else pandoc writes, using your own templates and reference documents. Export
+  one note or a whole folder as one document.
+- **Citations** from a BibTeX or CSL JSON bibliography (Zotero's Better BibTeX
+  works well), with `[@key]` completion and a formatted reference list on export.
+- **Git sync and version history**: sync with any git remote or a private
+  GitHub repository you create in one click, resolve conflicts side by side,
+  and see or restore any earlier version of a note. Conflict copies from
+  Syncthing, Nextcloud and Dropbox are spotted and resolved the same way.
+- **Your theme's colors**, through an Omarchy theme template, or the fixed
+  Oma palette shared with OmaShow and the other Oma apps.
+- From Omawrite: a calm editor that hides Markdown markers away from the caret,
+  auto-save, crash recovery, and warnings when a file changes underneath you.
 
-- **Turn on version history** saves every version of every note with git.
-  With no remote, that is version history on this computer only.
-- **Add a remote** to sync: any git address, or **Create** a private GitHub
-  repository with the GitHub CLI (`gh`) in one click. Git uses your normal
-  login (`gh auth login` then `gh auth setup-git`, or an SSH key) and never
-  stops to ask for a password; a missing login shows as an error with a hint.
-- **Syncing** saves this device's changes as a version, merges in the other
-  side's (never rewriting history), and sends this side's. It runs when
-  OmaZettel starts, every 5 minutes (adjustable), and on Ctrl+Alt+S or the ⟳
-  button. The open note is saved first, and reloads quietly if the sync
-  changed it (you are asked only if you were typing at the same moment).
-- **Conflicts**: when a note changed on both sides since the last sync, the
-  sync stops and lists it. **Compare…** shows both versions line by line;
-  choose **Keep mine**, **Keep theirs** or **Keep both** (theirs is saved
-  beside it as "Note (other version).md"), or **Edit** the note to combine the
-  two and click **Done editing**. **Undo the merge** leaves everything as it
-  was here. The sync then finishes and sends the result.
-- **History** (right-click a note → History…): every saved version, newest
-  first, compared with the note as it is now. **Restore this version** puts it
-  back in the editor (Ctrl+Z takes it back).
+## Install
 
-**Syncthing, Nextcloud, Dropbox or ownCloud**: point it at the notes folder.
-When a note changes on two devices at once, those tools leave a conflict copy
-(`Note.sync-conflict-…md`, `Note (conflicted copy …).md`, …). OmaZettel keeps
-copies out of links, search and tags, lists them in Sync & history, and
-resolves them the same way: keep the original, keep the copy (the original
-goes to the trash) or keep both.
+OmaZettel is built for Omarchy and Arch Linux. Clone it and run the installer,
+which builds the app and installs it as a package with pacman (it asks for your
+password):
 
-Nothing here edits a note live alongside someone else; for that, people take
-turns and sync.
+```sh
+git clone https://github.com/mcsmith3/omazettel.git
+cd omazettel
+./bin/install
+```
 
-## Look
+It needs `qt6-base`, `qt6-declarative` and `xdg-desktop-portal`, which Omarchy
+already has, plus `gcc` and `make` to build. Some features use other programs,
+installed only if you want them:
 
-OmaZettel uses the shared Oma palette (as in OmaShow and the other Oma apps):
-a fixed dark surround, with the accent from your Omarchy theme. Turn it off in
-the sidebar's … menu → Oma color palette to take every colour from the Omarchy
-theme instead, as Omawrite does.
+| For | Install |
+| --- | --- |
+| Export to PDF, Word, HTML, … | `sudo pacman -S pandoc-cli` |
+| PDF export (any font, any language) | `sudo pacman -S texlive-xetex` (or `texlive-latex` for pdflatex) |
+| Version history and sync | `sudo pacman -S git` |
+| Creating a GitHub repository to sync with | `sudo pacman -S github-cli`, then `gh auth login` and `gh auth setup-git` |
+| Editing Word and OpenDocument styles | `sudo pacman -S libreoffice-fresh` |
 
-## Notes folder
+To update later, `git pull` and run `./bin/install` again. To remove it,
+`sudo pacman -R omazettel`; your notes are untouched.
 
-Choose a folder of Markdown notes from the sidebar (or its `…` menu). The
-sidebar shows the folder's `.md` and `.markdown` files and subfolders; hidden
-folders such as `.git` stay out of view. Notes stay ordinary files, so you can
-keep editing the same folder in VS Code, track it with git or run pandoc on it.
+## Getting started
 
-- Click a note to open it in place. A note you were just editing is saved
-  first, the same way auto-save would have saved it.
-- Right-click a note or folder for New note here, New folder here, Rename and
-  Move to trash. Trashed notes go to the desktop trash, not deleted outright.
-- Drag a note or folder onto a folder to move it there, or onto the empty
-  space below the tree to move it to the top. Click a folder first to make
-  new notes in it.
-- Drag the sidebar's right edge to resize it.
-- OmaZettel remembers the folder, recent folders and the last open note.
+1. Open **OmaZettel** from the app launcher.
+2. Click **Choose folder…** and pick a folder of Markdown notes, or an empty
+   folder to start one. OmaZettel reopens it, at the note you had open, next time.
+3. Press **Ctrl+N** for a new note, pick a template, and give it a title.
+4. Type `[[` to link to another note. Ctrl+click a link to follow it.
+5. Press **Ctrl+Shift+P** for every command, and **Ctrl+,** for settings.
+
+To make OmaZettel the default app for Markdown files:
+
+```sh
+xdg-mime default omazettel.desktop text/markdown text/x-markdown
+```
+
+## Writing
+
+- Markdown markers (`**`, `_`, `` ` ``, link addresses) fade away when the caret
+  is elsewhere and come back when you edit them. Headings, lists, quotes and
+  code blocks are styled as you type.
+- Once a note has a file, edits are saved a moment after you stop typing, so
+  Ctrl+S is rarely needed. Untitled drafts are never saved behind your back, but
+  are recovered after a crash.
+- If another app changes the open note, OmaZettel asks before replacing your
+  text, and stops auto-saving until you choose.
+- Ctrl+B, Ctrl+I and Ctrl+Shift+X toggle bold, italic and strikethrough; Ctrl+K
+  inserts a link; Tab and Shift+Tab indent list items; Enter continues lists.
+- The **A** button in the footer picks the writing font (IBM Plex Mono by
+  default). Text follows `omarchy display text size`, and Ctrl+= / Ctrl+- /
+  Ctrl+scroll change it on top of that.
+
+## Links, backlinks and tags
+
+- **Link** with `[[Note name]]`, `[[folder/Note]]`, `[[Note#Heading]]`,
+  `[[#Heading]]` (in the same note) or `[[Note|label]]`, which reads as just
+  "label". Typing `[[` suggests notes; Up, Down and Enter pick one.
+- **Follow** a link with Ctrl+click, or Ctrl+Enter with the caret in it. Web
+  links open in the browser. Alt+Left and Alt+Right go back and forward.
+- **Links to new notes** create those notes when the note is saved, next to it
+  or at the path the link names, from the Note template. The link you are still
+  typing waits. Turn this off in Settings to create notes only on Ctrl+click.
+- **Renaming or moving** a note, or a folder of notes, updates every link to it
+  and keeps `#heading` and `|label`. The status bar says how many links changed.
+- **Tag** with `#tag` (nested: `#project/client`), or `tags: [a, b]` or
+  `keywords:` in the YAML header.
+- The **right panel** (Ctrl+Shift+B) shows the open note's outline, its tags,
+  and its **backlinks**: every note that links to it, with the line it's on.
+  The sidebar's **Tags** tab lists every tag with its count.
+- The note index notices edits made in other apps when you switch back.
 
 ## Note templates
 
-New notes (Ctrl+N or the sidebar's new-note button) start from a template you
-pick; OmaZettel remembers the last one. Ctrl+Shift+D opens today's daily note,
-making it the first time.
+**Ctrl+N** asks for a template and a title; OmaZettel remembers the template you
+used last. **Ctrl+Shift+D** opens today's daily note, making it the first time.
 
-Templates are Markdown files in `<notes folder>/.omazettel/note-templates/`.
-The first time you make a note, OmaZettel adds four: **Note** (a Zettelkasten
-note with an ID), **Meeting**, **Daily** and **Literature note**. Edit them, or
-add your own, from the sidebar's `…` menu → Edit note templates, or in any
-editor. Each starts with a pandoc YAML header (title, author, date, tags, …),
-so notes export with the right metadata.
+Templates are Markdown files in `.omazettel/note-templates/` inside your notes
+folder; OmaZettel adds **Note** (a Zettelkasten note with an ID), **Meeting**,
+**Daily** and **Literature note** the first time. Edit them from … →
+Edit note templates, or add your own. Each starts with a pandoc YAML header:
 
-Placeholders: `{{title}}`, `{{author}}` (set it in the `…` menu; defaults to
-your account's full name), `{{date}}`, `{{date:dddd d MMMM yyyy}}` (any Qt date
-format), `{{time}}`, `{{datetime}}`, `{{weekday}}`, `{{id}}` (yyyyMMddHHmmss),
-`{{folder}}` and `{{cursor}}` (where typing starts). In the YAML header, values
-are escaped so quotes in a title stay valid.
+```markdown
+<!-- omazettel: name="{{date}} {{title}}" folder="Meetings" -->
+---
+title: "{{title}}"
+author: "{{author}}"
+date: "{{date}}"
+tags: [meeting]
+---
 
-An optional first line sets how the note is made, and is left out of it:
+## Agenda
 
+- {{cursor}}
 ```
-<!-- omazettel: name="{{date}} {{title}}" folder="Meetings" existing="open" -->
-```
 
-`name` is the file name (default `{{title}}`), `folder` is where it goes
-inside the notes folder (default: the selected folder) and `existing="open"`
-opens a note of that name instead of making a second one (the Daily template
-uses it). A template that doesn't use `{{title}}` doesn't ask for one.
-
-## Citations
-
-Point OmaZettel at a bibliography in … menu → Citations…: a BibTeX (`.bib`)
-or CSL JSON file, such as the one Zotero's Better BibTeX keeps exported (it
-reloads when the file changes), and optionally a citation style (`.csl`, for
-example APA from the [Zotero Style Repository](https://www.zotero.org/styles);
-pandoc's default is Chicago author-date). Both are saved in
-`.omazettel/citations.yaml`, relative to the notes folder when inside it.
-
-Cite with `[@key]`, `[@key, p. 4]` or `[see @one; @two]`; typing `[@` suggests
-references by key, author, year or title. Citations show in the accent.
-Exports of notes that cite something run pandoc's citeproc, which formats the
-citations and adds the reference list. A note can also name its own
-`bibliography:` in its YAML header.
+- **Placeholders:** `{{title}}`, `{{author}}` (set in Settings),
+  `{{date}}`, `{{date:dddd d MMMM yyyy}}` (any Qt date format), `{{time}}`,
+  `{{datetime}}`, `{{weekday}}`, `{{id}}` (yyyyMMddHHmmss), `{{folder}}` and
+  `{{cursor}}`, where typing starts. Values in the YAML header are escaped.
+- **The first line** (optional, left out of the note) sets the file `name`
+  (default `{{title}}`), the `folder` it goes in, and `existing="open"` to open a
+  note of that name instead of making a second one, as the Daily template does.
+- A template that doesn't use `{{title}}` doesn't ask for one.
 
 ## Search and outline
 
 ![Search across notes](docs/screenshots/search.png)
 
-- Ctrl+Shift+F opens the sidebar's Search tab (with the selected text, if
-  any). Words find notes containing all of them, `"quoted phrases"` match as
-  written, and `#tag` or `tag:name` keeps notes with that tag or one under it.
-  Case and accents don't matter. Notes with a match in the title come first;
-  each shows up to three matching lines. Click one to open the note with the
-  match selected; Enter in the field opens the first.
-- The right panel's Outline lists the open note's headings as you type and
-  marks the section the caret is in. Click one to go there.
-- `[[Note#Heading]]` opens the note at that heading, and `[[#Heading]]` jumps
-  to a heading in the same note.
+- **Ctrl+Shift+F** searches every note. Words must all appear, in any order;
+  `"quoted phrases"` match as written; `#tag` or `tag:name` keeps notes with
+  that tag or one under it. Case and accents don't matter. Title matches come
+  first, each note shows its matching lines, and clicking one opens the note
+  with the match selected.
+- **Ctrl+O** jumps to a note by name (Enter on a new name creates it), and
+  **Ctrl+F** / **Ctrl+H** find and replace within the note.
+- The **outline** in the right panel follows your headings as you type and
+  marks the section you're in; click one to go there.
 
 ## Export
 
 ![The export dialog](docs/screenshots/export.png)
 
-Ctrl+Shift+E (or right-click a note → Export…) exports the note with
-[pandoc](https://pandoc.org). Pick a profile and where to save, then Export.
-The open note exports what is in the editor, unsaved changes included.
-`[[links]]` become their text, since links between notes mean nothing in a
-PDF; the note's YAML header (title, author, date, …) fills the document.
+**Ctrl+Shift+E** (or right-click a note → Export…) exports with
+[pandoc](https://pandoc.org). Pick a profile and where to save. The note's YAML
+header fills in the title, author and date; `[[links]]` become their text;
+unsaved changes are included.
 
-How it is set up, after Zettlr's custom templates and reference documents,
-but as pandoc's own files so the same export also works from a terminal:
+The setup follows Zettlr's custom templates and reference documents, but uses
+pandoc's own files, so the same export works from a terminal:
 
 - **Profiles** are pandoc [defaults files](https://pandoc.org/MANUAL.html#defaults-files)
-  in `<notes folder>/.omazettel/export/`. OmaZettel adds PDF, Word,
-  OpenDocument, HTML and LaTeX source the first time you export. Any pandoc
-  option works in them (`toc: true`, `number-sections: true`, `variables:`,
-  `citeproc: true`, …). Click Edit in the export dialog to change one, or New
-  to copy it.
-- **Templates** (`.tex`, `.html`) lay out PDF and HTML exports, and
-  **reference documents** (`.docx`, `.odt`, `.pptx`) give Word, LibreOffice
-  and PowerPoint exports their styles. They live in `.omazettel/templates/`.
-  New ▾ in the export dialog makes one from pandoc's default; edit a template
-  in OmaZettel, or open a reference document in LibreOffice or Word and change
-  its styles. **New profile with this** makes a profile that uses it.
-- Profiles point to templates with `${.}/../templates/<file>` (`${.}` is the
-  profile's folder), so from a terminal:
-  `pandoc -d .omazettel/export/PDF.yaml note.md -o note.pdf`.
+  in `.omazettel/export/`: PDF, Word, OpenDocument, HTML and LaTeX source to
+  start with. Any pandoc option works (`toc: true`, `number-sections: true`,
+  `variables:`, …). **Edit** opens one; **New…** copies it.
+- **Templates** (`.tex`, `.html`) lay out PDF and HTML exports; **reference
+  documents** (`.docx`, `.odt`, `.pptx`) carry Word, LibreOffice and PowerPoint
+  styles. **New ▾** makes one from pandoc's default in `.omazettel/templates/`,
+  and **New profile with this** makes a profile that uses it.
+- From a terminal: `pandoc -d .omazettel/export/PDF.yaml note.md -o note.pdf`.
 
-**Export a folder** (right-click a folder → Export folder…, or … menu →
-Export the whole notes folder…) to make one document from all its notes,
-subfolders included, like a Zettlr project. Untick notes to leave them out,
-reorder with ↑ ↓, and give the document a title and author. Each note's YAML
-header is dropped and its title becomes a chapter heading. The order, choices
-and profile are saved in the folder's `.omazettel-project.yaml`; notes added
-later are appended.
+**Export a folder** (right-click a folder → Export folder…) to make one document
+from all its notes and subfolders, like a Zettlr project: untick notes, reorder
+them, and give it a title and author. Each note's title becomes a chapter
+heading. Choices are saved in the folder's `.omazettel-project.yaml`.
 
-PDF export needs a LaTeX engine. The PDF profile uses XeLaTeX when it's
-installed (`sudo pacman -S texlive-xetex`, which handles any Unicode text and
-system fonts) and pdflatex otherwise.
+Exports are saved next to the note, or, if you choose in Settings, in an
+`Exports` folder that is kept out of git sync.
 
-## Links and tags
+PDF export needs a LaTeX engine. The PDF profile uses XeLaTeX when
+`texlive-xetex` is installed (any font, any script), and pdflatex otherwise.
 
-- Link notes with `[[Note name]]`. `[[folder/Note]]`, `[[Note#Heading]]` and
-  `[[Note|label]]` work too; a labelled link shows only its label until the
-  caret is in it. Typing `[[` suggests notes; Up, Down and Enter
-  pick one.
-- Ctrl+click a link, or put the caret in it and press Ctrl+Enter, to open it.
-- A link to a note that doesn't exist yet gets that note made when the note
-  is saved (auto-save included), next to the linking note or at the path the
-  link names, from the Note template. The link the caret is still in waits,
-  so half-typed names don't become notes.
-- Renaming or moving a note, or a folder of notes, updates every `[[link]]`
-  to it, keeping `#heading` and `|label`. Path links (`[[folder/Note]]`) get
-  the new path. The status bar says how many links changed. Web links open in the browser. Alt+Left and Alt+Right go back and
-  forward.
-- Tag notes with `#tag` (nested tags like `#project/client` work), or with
-  `tags: [a, b]` or `keywords:` in YAML front matter.
-- The right panel (Ctrl+Shift+B) shows the open note's tags and its
-  backlinks: every note that links to it, with the line it does so on.
-- The sidebar's Tags tab lists every tag with its count; open one to see its
-  notes.
-- Ctrl+O jumps to any note by name; Enter on a name with no match creates it.
-- The index rescans after changes in the sidebar, on save, and whenever you
-  come back to the window, so edits made in other apps show up too.
+## Citations
 
-## Install
+In … → **Citations…**, choose a bibliography (BibTeX `.bib` or CSL JSON, such as
+the file Zotero's Better BibTeX keeps exported; OmaZettel reloads it when it
+changes) and, if you like, a citation style (`.csl`, from the
+[Zotero Style Repository](https://www.zotero.org/styles); pandoc's default is
+Chicago author-date).
 
-On Arch or Omarchy, from this checkout:
+Cite with `[@key]`, `[@key, p. 4]` or `[see @one; @two]`. Typing `[@` suggests
+references by key, author, year or title. Exports of notes that cite something
+format the citations and add a reference list. A note may also name its own
+`bibliography:` in its header.
 
-```sh
-./bin/install
-```
+## Sync and history
 
-That builds OmaZettel and installs the package with pacman (it asks for your
-password). Optional extras: `pandoc-cli` for export, `texlive-xetex` for PDF,
-`git` and `github-cli` for sync. Then open OmaZettel from the app launcher,
-choose a notes folder, and press **Ctrl+Shift+P** for every command or
-**Ctrl+,** for settings.
+Your notes stay plain files on your computer. To keep them on other devices, or
+share them with a few people taking turns, OmaZettel has git built in (… →
+**Sync & history…**, or click the status line at the foot of the sidebar):
 
-## Command line
+1. **Turn on version history.** Every version of every note is kept with git.
+2. **Add a remote**: paste any git address, or click **Create** to make a
+   private GitHub repository with the GitHub CLI. Git uses your usual login
+   (`gh auth setup-git` or an SSH key) and never stops to ask for a password; a
+   login problem shows as a message with a hint.
+3. **Sync** happens when OmaZettel starts, every 5 minutes (adjustable), and on
+   **Ctrl+Alt+S** or the sync button. It saves your changes as a version,
+   merges the other side's (never rewriting history) and sends yours. The open
+   note is saved first and reloads quietly if the sync changed it.
 
-`omazettel` opens an empty document and `omazettel FILE` opens a Markdown file.
-`omazettel --help` and `omazettel --version` answer in the terminal without opening a window.
+**Conflicts.** When the same note changed on two devices, the sync stops and
+lists it. **Compare…** shows both versions line by line; choose **Keep mine**,
+**Keep theirs**, **Keep both** (theirs saved beside it as
+"Note (other version).md"), or **Edit** the note to combine them and click
+**Done editing**. **Undo the merge** leaves everything as it was.
 
-## Shortcuts
+**History.** Right-click a note → **History…** lists its saved versions,
+compares any of them with the note as it is now, and restores one (Ctrl+Z takes
+it back).
 
-- `Ctrl+S` saves. Unsaved documents use the XDG desktop portal file picker.
-- `Ctrl+Shift+S` saves as.
-- `Ctrl+O` goes to a note in the notes folder (or opens a file when no folder is open).
-- `Ctrl+Shift+O` opens any Markdown file through the portal picker.
-- `Ctrl+P` opens the system print dialog.
-- `Ctrl+N` makes a new note in the notes folder.
-- `Ctrl+Shift+N` opens a new OmaZettel window.
-- `Ctrl+Shift+D` opens today's daily note.
-- `Ctrl+Shift+E` exports the note with pandoc.
-- `Ctrl+Shift+F` searches all notes.
-- `Ctrl+Alt+S` syncs now (or saves a version, without a remote).
-- `Ctrl+Shift+P` opens the command palette; `Ctrl+,` opens settings.
-- `Ctrl+\` shows or hides the notes sidebar.
-- `Ctrl+Z`, `Ctrl+Shift+Z`, and `Ctrl+Y` handle undo and redo.
-- `Super+F` toggles fullscreen. Qt maps this key as `Meta+F`.
-- `Ctrl+F` searches the document. Use `Enter` or `Ctrl+G` for the next match and `Shift+Enter` for the previous match.
-- `Ctrl+H` opens find and replace.
-- `Ctrl+B`, `Ctrl+I`, and `Ctrl+Shift+X` toggle bold, italic, and strikethrough Markdown. `Ctrl+K` inserts a link.
-- `Ctrl+=` and `Ctrl+-` change the text size, `Ctrl+0` returns to the default.
-  `Ctrl+scroll` does the same.
-- `Ctrl+Shift+C` copies the rendered document as HTML, with plain text as a fallback.
-- `Ctrl+?`, `Ctrl+/`, or `F1` shows the keyboard shortcut reference.
-- In the unsaved-changes dialog, `Alt+C`, `Alt+D`, and `Alt+S` choose Cancel,
-  Discard, and Save.
+**Syncthing, Nextcloud, Dropbox or ownCloud** work too: point them at the notes
+folder. The conflict copies they leave (`Note.sync-conflict-….md`,
+`Note (conflicted copy …).md`, …) are kept out of links and search, listed in
+Sync & history, and resolved the same way.
 
-Once a document has been saved to a file, edits are auto-saved to that file a
-moment after you stop typing, so `Ctrl+S` is rarely needed. Untitled drafts are
-never auto-saved — they wait for an explicit save so OmaZettel never picks a file
-name for you. Unsaved drafts are recovered after an abnormal exit. OmaZettel also
-watches open files and warns before an external change can replace local work;
-auto-save pauses until you reload, keep your version, or save. A recovered draft
-is never auto-saved over its file — save it to keep it.
+OmaZettel does not edit a note live alongside someone else. People take turns
+and sync, and the conflict screen handles the occasional clash.
 
-The font button in the footer picks the writing font from any installed text font,
-and OmaZettel remembers the choice. IBM Plex Mono is the default.
-
-Text follows the desktop text size — `omarchy display text size`, or GNOME's
-`text-scaling-factor` — and re-flows without a restart. The default of 12px leaves
-OmaZettel at the size it is designed around; larger and smaller sizes scale from there.
-`Ctrl+=`, `Ctrl+-`, and `Ctrl+scroll` set your own size on top of that, from 50% to
-300% in browser-sized steps. It is remembered for the next window you open.
-
-## Requirements
-
-- Qt 6: `qt6-base` and `qt6-declarative` (which includes Qt Quick Controls)
-- `xdg-desktop-portal` and a portal backend
-
-The IBM Plex Mono font is bundled under the SIL Open Font License 1.1; see
-`fonts/OFL.txt`. The font is copyright IBM Corp.
-
-## Build and install
-
-For a local build, install the Qt requirements above, a C++17 compiler such as
-`gcc`, and `make`. The build scripts use `qmake6` (or `qmake`), and the tests use
-QtTest; both ship in `qt6-base`.
+On another computer, clone the repository and choose that folder in OmaZettel:
 
 ```sh
-./bin/build
-./bin/test
-./build/omazettel
+git clone https://github.com/you/notes.git ~/Notes
 ```
 
-`bin/test` runs the Qt test suite with the offscreen platform, so it does not
-require an active graphical session. To open a file with the local build:
+## Colors and themes
+
+![Catppuccin Latte, Tokyo Night and Gruvbox](docs/screenshots/themes.png)
+
+OmaZettel follows your Omarchy theme the way Neovim, VS Code and the terminals
+do: switch themes and it recolors at once, light themes included. Every color
+it uses has a name (`editor.background`, `editor.heading`, `editor.link`,
+`editor.wikilink`, `editor.tag`, `editor.citation`, `editor.code`, `ui.panel`,
+`ui.border`, `ui.accent`, …), and the names are set by an `omazettel.toml` theme
+file in Omarchy's template format:
+
+```toml
+[editor]
+background = "{{ background }}"
+link = "{{ blue }}"
+tag = "{{ magenta }}"
+citation = "{{ yellow }}"
+search = "{{ mix background yellow 35% }}"
+
+[ui]
+panel = "{{ dark_background }}"
+border = "{{ mix background foreground 18% }}"
+```
+
+The colors come from the first of these that exists:
+
+1. **The theme's own `omazettel.toml`**, in the theme's folder. Theme authors can
+   ship one, as they do `neovim.lua` or `vscode.json`. Omarchy also writes it
+   when you switch themes if you have a template in `~/.config/omarchy/themed/`.
+2. **Your template**, `~/.config/omarchy/themed/omazettel.toml.tpl`, used for
+   every theme. Settings → **Customize theme colors…** creates it from the
+   built-in one and opens it; OmaZettel picks up each save at once.
+3. **The built-in template** ([`themed/omazettel.toml.tpl`](themed/omazettel.toml.tpl),
+   also installed to `/usr/share/omazettel/themed/`), filled with the current
+   theme's colors.
+
+`{{ name }}` is any color the theme defines (`background`, `foreground`,
+`accent`, `red` … `magenta`, `lighter_background`, `selection_background`,
+`color0`–`color15`, …), `{{ mix a b 30% }}` mixes two, and `"#rrggbb"` sets one
+directly. Names a file leaves out get sensible defaults.
+
+Prefer one look everywhere? Settings → **Oma palette** uses the fixed dark
+palette of OmaShow and the other Oma apps, keeping only the theme's accent.
+
+## Keyboard shortcuts
+
+Press **F1** in the app for the full list.
+
+| Keys | Action |
+| --- | --- |
+| Ctrl+Shift+P | Command palette |
+| Ctrl+, | Settings |
+| Ctrl+N | New note (from a template) |
+| Ctrl+Shift+D | Today's daily note |
+| Ctrl+O | Go to note |
+| Ctrl+Shift+F | Search all notes |
+| Ctrl+F / Ctrl+H | Find / find and replace in the note |
+| Ctrl+click, Ctrl+Enter | Follow a link |
+| Alt+Left / Alt+Right | Back / forward |
+| Ctrl+Shift+E | Export with pandoc |
+| Ctrl+Alt+S | Sync now |
+| Ctrl+\ | Show or hide the sidebar |
+| Ctrl+Shift+B | Show or hide outline, tags and backlinks |
+| Ctrl+Shift+O | Open any file |
+| Ctrl+Shift+N | New window |
+| Ctrl+B / Ctrl+I / Ctrl+K | Bold / italic / link |
+| Ctrl+= / Ctrl+- / Ctrl+0 | Text size |
+| Ctrl+P | Print |
+| F11 or Super+F | Full screen |
+
+## Where things are kept
+
+Everything about your notes lives in the notes folder, so it syncs with them:
+
+| Path (in the notes folder) | What |
+| --- | --- |
+| `*.md`, subfolders | Your notes |
+| `.omazettel/note-templates/` | Note templates |
+| `.omazettel/export/` | Export profiles (pandoc defaults files) |
+| `.omazettel/templates/` | Export templates and reference documents |
+| `.omazettel/citations.yaml` | Bibliography and citation style |
+| `<folder>/.omazettel-project.yaml` | A folder export's notes, order and profile |
+| `Exports/` | Exports, if you chose that in Settings (git-ignored) |
+
+App settings (window, recent folders, author, sync timing) are in
+`~/.config/omazettel/omazettel.conf`.
+
+`omazettel FILE` opens a file; with no arguments OmaZettel reopens your notes
+folder at the last note. `omazettel --help` and `--version` answer in the
+terminal.
+
+## Building from source
+
+You need Qt 6 (`qt6-base`, `qt6-declarative`), a C++17 compiler and `make`.
 
 ```sh
-./build/omazettel path/to/document.md
+./bin/build            # builds ./build/omazettel
+./bin/test             # runs the tests (offscreen; no display needed)
+./build/omazettel      # runs the build
+./bin/install          # builds and installs the Arch package
 ```
 
-On Arch Linux or Omarchy, install `base-devel` for the packaging tools, then
-build and install the package:
+The tests cover the editor (from Omawrite) and OmaZettel's notes features,
+including real pandoc exports and two devices syncing through a git remote.
 
-```sh
-./bin/install
-```
+The code is laid out so changes from upstream Omawrite merge cleanly:
+OmaZettel's additions live in their own files (`src/vault.*`,
+`src/noteindex.*`, `src/zettel.*`, `src/exporter.*`, `src/sync.*`,
+`src/apptheme.*`, `src/backend_notes.cpp`, `src/markdownhighlighter_notes.cpp`
+and the QML panels and dialogs), with small hooks in Omawrite's files.
+`docs/PLAN.md` records how it was built.
 
-This runs the local build and `makepkg -fsi`, which installs the package through
-pacman and may ask for authentication. To build a package archive for inspection
-without installing it:
+## Contributing
 
-```sh
-cd pkgbuild
-makepkg -f
-```
+Issues and pull requests are welcome. Please:
 
-## License
+- describe what you expected and what happened, with your Omarchy version
+  (`omarchy version`) for bugs;
+- run `./bin/test` before sending a pull request, and add a test for new
+  behavior where you can;
+- keep additions out of Omawrite's own files when possible, so upstream
+  merges stay simple.
+
+## Credits and license
 
 OmaZettel is licensed under the GNU General Public License, version 3 or later
-(`GPL-3.0-or-later`); see `LICENSE`. It started from Omawrite, which is under the
-MIT license (`LICENSES/MIT-omawrite.txt`). See `THIRD-PARTY-NOTICES.md` for
-all included code and fonts.
+(`GPL-3.0-or-later`); see [`LICENSE`](LICENSE).
 
+It started from [Omawrite](https://github.com/omacom/omawrite) by David
+Heinemeier Hansson, under the MIT license
+([`LICENSES/MIT-omawrite.txt`](LICENSES/MIT-omawrite.txt)). Ideas come from
+[Zettlr](https://www.zettlr.com), [Obsidian](https://obsidian.md),
+[Joplin](https://joplinapp.org) and [Alexandrie](https://github.com/Smaug6739/Alexandrie),
+and the Oma palette from [OmaShow](https://github.com/28allday/omashow). The bundled
+IBM Plex Mono font is under the SIL Open Font License 1.1
+([`fonts/OFL.txt`](fonts/OFL.txt)). See
+[`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) for details.
