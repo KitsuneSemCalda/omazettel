@@ -1,15 +1,27 @@
 # Maintainer: Matthew Smith <mcsmith84@gmail.com>
+#
+# Builds OmaZettel from this checkout: ./bin/install (or makepkg -fsi here).
+# For a release from the repository instead, set
+#   source=("git+https://github.com/mcsmith3/omazettel.git#tag=v$pkgver")
+# and build in "$srcdir/omazettel".
 
 pkgname=omazettel
-pkgver=0.1.0
+pkgver=0.5.0
 pkgrel=1
-pkgdesc='Zettelkasten notes in plain Markdown files, built with Qt Quick'
+pkgdesc='Zettelkasten notes in plain Markdown files: links, backlinks, tags, templates, pandoc export and git sync'
 arch=('x86_64' 'aarch64')
 url='https://github.com/mcsmith3/omazettel'
 license=('GPL-3.0-or-later' 'MIT' 'OFL-1.1')
 install='omazettel.install'
 depends=('qt6-base' 'qt6-declarative' 'xdg-desktop-portal')
 makedepends=('gcc' 'make' 'qt6-base' 'qt6-declarative')
+optdepends=('pandoc-cli: export to PDF, Word, OpenDocument, HTML and more'
+            'texlive-xetex: PDF export with any font and Unicode text'
+            'texlive-latex: PDF export with pdflatex'
+            'git: version history and sync'
+            'github-cli: create a private GitHub repository for sync'
+            'libreoffice-fresh: edit Word and OpenDocument reference documents')
+options=('!debug')
 source=()
 sha256sums=()
 
@@ -25,6 +37,7 @@ package() {
   /usr/bin/install -Dm644 LICENSES/MIT-omawrite.txt "$pkgdir/usr/share/licenses/$pkgname/MIT-omawrite.txt"
   /usr/bin/install -Dm644 THIRD-PARTY-NOTICES.md "$pkgdir/usr/share/licenses/$pkgname/THIRD-PARTY-NOTICES.md"
   /usr/bin/install -Dm644 fonts/OFL.txt "$pkgdir/usr/share/licenses/$pkgname/OFL.txt"
+  /usr/bin/install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
   /usr/bin/install -Dm644 "$startdir/omazettel.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/omazettel.svg"
   /usr/bin/install -Dm644 "$startdir/omazettel.desktop" "$pkgdir/usr/share/applications/omazettel.desktop"
 }

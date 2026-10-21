@@ -7,7 +7,9 @@ OmaZettel is an independent fork of [Omawrite](https://github.com/omacom/omawrit
 by David Heinemeier Hansson. It is not made or endorsed by Omacom or the
 Omarchy project.
 
-> **Status: early development (0.1.0).** Working: the notes folder sidebar,
+![A note with its outline, tags and backlinks](docs/screenshots/notes.png)
+
+> **Status: 0.5.0, early but complete.** Working: the notes folder sidebar,
 > `[[wiki links]]`, backlinks, tags, note templates, pandoc export with
 > custom templates, folder export, citations, search across notes and an
 > outline, in the shared Oma colour palette, with git sync, version history
@@ -123,6 +125,8 @@ citations and adds the reference list. A note can also name its own
 
 ## Search and outline
 
+![Search across notes](docs/screenshots/search.png)
+
 - Ctrl+Shift+F opens the sidebar's Search tab (with the selected text, if
   any). Words find notes containing all of them, `"quoted phrases"` match as
   written, and `#tag` or `tag:name` keeps notes with that tag or one under it.
@@ -135,6 +139,8 @@ citations and adds the reference list. A note can also name its own
   to a heading in the same note.
 
 ## Export
+
+![The export dialog](docs/screenshots/export.png)
 
 Ctrl+Shift+E (or right-click a note → Export…) exports the note with
 [pandoc](https://pandoc.org). Pick a profile and where to save, then Export.
@@ -176,7 +182,8 @@ system fonts) and pdflatex otherwise.
 ## Links and tags
 
 - Link notes with `[[Note name]]`. `[[folder/Note]]`, `[[Note#Heading]]` and
-  `[[Note|label]]` work too. Typing `[[` suggests notes; Up, Down and Enter
+  `[[Note|label]]` work too; a labelled link shows only its label until the
+  caret is in it. Typing `[[` suggests notes; Up, Down and Enter
   pick one.
 - Ctrl+click a link, or put the caret in it and press Ctrl+Enter, to open it.
 - A link to a note that doesn't exist yet gets that note made when the note
@@ -199,8 +206,17 @@ system fonts) and pdflatex otherwise.
 
 ## Install
 
-There is no package release yet. Build from source as described in
-[Build and install](#build-and-install).
+On Arch or Omarchy, from this checkout:
+
+```sh
+./bin/install
+```
+
+That builds OmaZettel and installs the package with pacman (it asks for your
+password). Optional extras: `pandoc-cli` for export, `texlive-xetex` for PDF,
+`git` and `github-cli` for sync. Then open OmaZettel from the app launcher,
+choose a notes folder, and press **Ctrl+Shift+P** for every command or
+**Ctrl+,** for settings.
 
 ## Command line
 
@@ -220,6 +236,7 @@ There is no package release yet. Build from source as described in
 - `Ctrl+Shift+E` exports the note with pandoc.
 - `Ctrl+Shift+F` searches all notes.
 - `Ctrl+Alt+S` syncs now (or saves a version, without a remote).
+- `Ctrl+Shift+P` opens the command palette; `Ctrl+,` opens settings.
 - `Ctrl+\` shows or hides the notes sidebar.
 - `Ctrl+Z`, `Ctrl+Shift+Z`, and `Ctrl+Y` handle undo and redo.
 - `Super+F` toggles fullscreen. Qt maps this key as `Meta+F`.

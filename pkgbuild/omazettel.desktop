@@ -6,7 +6,12 @@ Comment=Zettelkasten notes in plain Markdown files
 Exec=omazettel %f
 Icon=omazettel
 Terminal=false
-Categories=Office;WordProcessor;TextEditor;
-MimeType=text/markdown;text/x-markdown;text/plain;
+Categories=Utility;TextEditor;
+MimeType=text/markdown;text/x-markdown;
 Keywords=markdown;zettelkasten;notes;wiki;write;text;editor;
 StartupWMClass=omazettel
+Actions=new-window;
+
+[Desktop Action new-window]
+Name=New Window
+Exec=omazettel

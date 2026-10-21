@@ -95,6 +95,13 @@ void MarkdownHighlighter::highlightZettel(const QString &text) {
         const QTextCharFormat &brackets = atCaret ? m_markerFormat : m_hiddenMarkerFormat;
         setFormat(link.start, 2, brackets);
         setFormat(link.start + link.length - 2, 2, brackets);
+        // [[target|label]] reads as its label, like a Markdown link's text,
+        // until the caret is in it.
+        if (!link.label.isEmpty()) {
+            const int pipe = int(text.indexOf(QLatin1Char('|'), link.start + 2));
+            if (pipe > 0 && pipe < link.start + link.length - 2)
+                setFormat(link.start + 2, pipe + 1 - (link.start + 2), brackets);
+        }
     }
 
     QTextCharFormat tagFormat;

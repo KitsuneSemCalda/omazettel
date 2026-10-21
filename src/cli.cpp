@@ -6,8 +6,9 @@ QString Cli::usage() {
     return QStringLiteral(
         "Usage: omazettel [FILE]\n"
         "\n"
-        "Opens FILE, a Markdown file, or an empty document without one. OmaZettel\n"
-        "is a graphical app and keeps running until its window is closed.\n"
+        "Opens FILE, a Markdown file. Without one, OmaZettel opens the notes folder\n"
+        "used last at the note open last (or an empty document). OmaZettel is a\n"
+        "graphical app and keeps running until its window is closed.\n"
         "\n"
         "Options:\n"
         "  -h, --help     Show this message and exit\n"

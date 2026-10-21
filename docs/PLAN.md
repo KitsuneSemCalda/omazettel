@@ -73,7 +73,7 @@ Estimates assume one person working with AI help.
 | 2 ✅ | Links and tags | `NoteIndex`, wiki link highlighting, Ctrl+click to follow (creating missing notes), back/forward history, `[[` completion, backlinks panel, quick switcher | 1–1.5 weeks |
 | 3 ✅ | Export and templates | Pandoc export profiles, custom templates and reference documents (see below) | 1–1.5 weeks |
 | 4 ✅ | Search and outline | Search across notes, outline panel (tags moved into Phase 2) | 3–5 days |
-| 5 | Polish and packaging | Command palette, settings, PKGBUILD, README, screenshots, tests for each new class | ~1 week |
+| 5 ✅ | Polish and packaging | Command palette, settings, PKGBUILD, README, screenshots, tests for each new class | ~1 week |
 | | **Version 1 total** | | **~4–6 weeks** |
 
 After version 1, in rough order of value:
@@ -155,6 +155,12 @@ After version 1, in rough order of value:
   `Backend::pauseFileWatching/resumeFileWatching` (quiet reload after sync),
   `SyncDialog`, `ConflictDialog`, `HistoryDialog`, `DiffView`, the sidebar's
   status line, Ctrl+Alt+S. Real-time co-editing left out on purpose.
+
+- **Phase 5 polish and packaging (done, 2026-10-21):** command palette,
+  settings, themed menus, Omawrite's buttons and dialogs in the Oma palette,
+  auto-create switch, Exports folder option, labelled links shown as their
+  label, version 0.5.0, PKGBUILD with optional dependencies, README
+  screenshots.
 
 ## Export templates (designed 2026-10-20, built in Phase 3)
 
