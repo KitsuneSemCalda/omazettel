@@ -177,7 +177,8 @@ xdg-mime default omazettel.desktop text/markdown text/x-markdown
   the title inside the note keeps its spaces. Settings can switch to
   underscores or spaces. Links don't mind which: `[[Cutover plan]]`,
   `[[cutover-plan]]` and `[[Cutover_plan]]` all find the same note, so older
-  notes with spaces keep working.
+  notes with spaces keep working. To rename those too, run
+  `omazettel tidy-names` to see the plan, then `omazettel tidy-names --apply`.
 - **Renaming or moving** a note, or a folder of notes, updates every link to it
   and keeps `#heading` and `|label`. The status bar says how many links changed.
 - **Tag** with `#tag` (nested: `#project/client`), or `tags: [a, b]` or
@@ -362,6 +363,7 @@ omazettel capture "Call the bank"                 # to today's daily note, under
 omazettel daily yesterday                         # or a date, or -3
 omazettel tasks                                   # open - [ ] tasks in every note
 omazettel rename "Atlas" "Atlas Program"          # and every [[link]] to it
+omazettel tidy-names [--apply]                    # rename old "file names with spaces"
 omazettel export Meetings -p Word                 # a folder as one document
 omazettel sync
 ```
@@ -373,6 +375,7 @@ omazettel sync
 | `new`, `append`, `set-section`, `set-meta`, `write` | Write: a note from a template (filling its sections and header), add under a heading, replace a section, change header fields, replace a note |
 | `daily`, `capture` | A day's daily note; a quick timestamped line or task in today's |
 | `rename`, `move`, `trash` | Organise, rewriting links as the app does |
+| `tidy-names` | Renames older notes with spaces in their file names to the current separator, rewriting links; previews unless `--apply` |
 | `export`, `sync` | Pandoc export with your profiles; git sync |
 | `transcribe` | Meeting captions (Teams, Zoom, Meet `.vtt`/`.srt`) as `Speaker: words`; `.docx` and `.txt` transcripts; recordings through Voxtype or whisper.cpp. With `--note`, an AI writes the meeting note |
 | `ai` | Which AI writes notes, whether it and transcription are ready, and how to fix them; `--set` chooses |

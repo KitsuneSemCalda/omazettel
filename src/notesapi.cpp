@@ -21,6 +21,8 @@
 #include <QStandardPaths>
 #include <QTimer>
 
+#include <QSet>
+
 #include <algorithm>
 
 namespace {
@@ -380,6 +382,13 @@ const QList<NotesApi::Tool> &NotesApi::tools() {
          {{QStringLiteral("note"), QStringLiteral("string"), QStringLiteral("The note (or folder) to rename"), true, true},
           {QStringLiteral("name"), QStringLiteral("string"), QStringLiteral("The new name"), true, true}},
          false, false, &NotesApi::renameNote},
+        {QStringLiteral("tidy_names"), QStringLiteral("tidy-names"),
+         QStringLiteral("Renames existing notes whose file names have spaces to use the file name separator "
+                        "(Settings; hyphen by default), rewriting every [[link]] to them. Shows the plan "
+                        "unless apply is set. Folders and titles inside notes are left as they are."),
+         {{QStringLiteral("folder"), QStringLiteral("string"), QStringLiteral("Only notes in this folder (default: all)"), false, true},
+          {QStringLiteral("apply"), QStringLiteral("boolean"), QStringLiteral("Rename them (default: only show what would change)")}},
+         false, false, &NotesApi::tidyNames},
         {QStringLiteral("move_note"), QStringLiteral("move"),
          QStringLiteral("Moves a note or folder into another folder (made if missing) and rewrites [[links]] "
                         "that name it by path."),
@@ -1403,6 +1412,65 @@ QJsonObject NotesApi::renameNote(const QJsonObject &args) {
                                                  .arg(result.value(QStringLiteral("linksUpdated")).toInt())
                                                  .arg(result.value(QStringLiteral("notesUpdated")).toInt()));
     return result;
+}
+
+QJsonObject NotesApi::tidyNames(const QJsonObject &args) {
+    const QString folderArg = str(args, QStringLiteral("folder"));
+    const QString scope = folderArg.isEmpty() ? QString() : folderPath(folderArg, false);
+    const bool apply = flag(args, QStringLiteral("apply"), false);
+    QStringList paths;
+    for (const QVariant &entry : m_index.notes()) {
+        const QString path = entry.toMap().value(QStringLiteral("path")).toString();
+        if (scope.isEmpty() || path.startsWith(scope + QLatin1Char('/')))
+            paths.append(path);
+    }
+    std::sort(paths.begin(), paths.end());
+
+    QJsonArray renamed;
+    QJsonArray skipped;
+    QStringList lines;
+    QSet<QString> taken;
+    int links = 0;
+    int notes = 0;
+    for (const QString &from : std::as_const(paths)) {
+        const QFileInfo info(from);
+        const QString name = Vault::noteFileName(info.completeBaseName());
+        if (name.isEmpty() || name == info.completeBaseName())
+            continue;
+        const QString to = QDir(info.absolutePath()).filePath(name + QLatin1Char('.') + info.suffix());
+        if (QFileInfo::exists(to) || taken.contains(to)) {
+            skipped.append(QJsonObject{{QStringLiteral("from"), relative(from)}, {QStringLiteral("to"), relative(to)},
+                                       {QStringLiteral("reason"), QStringLiteral("a note with that name already exists")}});
+            lines.append(QStringLiteral("  skipped %1 (%2 already exists)").arg(relative(from), relative(to)));
+            continue;
+        }
+        taken.insert(to);
+        QJsonObject item{{QStringLiteral("from"), relative(from)}, {QStringLiteral("to"), relative(to)}};
+        if (apply) {
+            const QJsonObject moved = relocate(from, to);
+            links += moved.value(QStringLiteral("linksUpdated")).toInt();
+            notes += moved.value(QStringLiteral("notesUpdated")).toInt();
+            item.insert(QStringLiteral("linksUpdated"), moved.value(QStringLiteral("linksUpdated")));
+        }
+        renamed.append(item);
+        lines.append(QStringLiteral("  %1 -> %2").arg(relative(from), relative(to)));
+    }
+
+    QString message;
+    if (renamed.isEmpty() && skipped.isEmpty())
+        message = QStringLiteral("Every note file name already uses “%1”.").arg(Vault::fileNameSeparator());
+    else if (apply)
+        message = QStringLiteral("Renamed %1 note(s); updated %2 link(s) in %3 note(s).\n%4")
+                      .arg(renamed.size()).arg(links).arg(notes).arg(lines.join(QLatin1Char('\n')));
+    else
+        message = QStringLiteral("Would rename %1 note(s) (nothing changed yet; add --apply to do it):\n%2")
+                      .arg(renamed.size()).arg(lines.join(QLatin1Char('\n')));
+    return {{QStringLiteral("applied"), apply},
+            {QStringLiteral("separator"), Vault::fileNameSeparator()},
+            {QStringLiteral("renamed"), renamed},
+            {QStringLiteral("skipped"), skipped},
+            {QStringLiteral("linksUpdated"), links},
+            {QStringLiteral("message"), message}};
 }
 
 QJsonObject NotesApi::moveNote(const QJsonObject &args) {

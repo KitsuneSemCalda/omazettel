@@ -38,6 +38,7 @@ omazettel capture <text> [--task]
 omazettel tasks [--status open|done|all] [--note N] [--folder F] [--tag T]
 omazettel tags | links                            # tag counts; broken links and orphans
 omazettel rename <note|folder> <new name>         # rewrites [[links]]
+omazettel tidy-names [folder] [--apply]           # spaces in file names -> separator; preview first
 omazettel move <note|folder> <folder>
 omazettel trash <note>
 omazettel export <note|folder> [-p PDF|Word|HTML|...] [-o file]
@@ -152,7 +153,8 @@ open them (`omazettel <path>` opens one in the app).
 ## Organising and exporting
 
 `rename` and `move` rewrite every `[[link]]` to what moved, as the app does;
-never move notes with `mv`. `export <note> -p PDF` uses the folder's pandoc
+never move notes with `mv`. `tidy-names` renames notes with spaces in their
+file names; run it without `--apply` first and show the person the list. `export <note> -p PDF` uses the folder's pandoc
 export profiles (`info` lists them) and answers with `output`, the file
 written; exporting a folder makes one document of its notes. `sync` saves a
 version and pulls and pushes when git sync is set up; `sync --status` only

@@ -2258,6 +2258,26 @@ private slots:
         QCOMPARE(api.call(*NotesApi::toolNamed(QStringLiteral("read_note")),
                           {{QStringLiteral("note"), QStringLiteral("old-note")}}).value(QStringLiteral("path")).toString(),
                  QStringLiteral("Old note.md"));
+
+        // tidy_names: a preview first, then renames with links rewritten.
+        writeFile(root.filePath(QStringLiteral("Meetings/2026-10-22 Vendor kickoff.md")), "# Vendor kickoff\nWith [[Old note]].\n");
+        writeFile(root.filePath(QStringLiteral("Taken one.md")), "# A\n");
+        writeFile(root.filePath(QStringLiteral("Taken-one.md")), "# B\n");
+        QVERIFY(api.open(root.path(), &error));
+        const auto tidy = *NotesApi::toolNamed(QStringLiteral("tidy_names"));
+        QJsonObject plan = api.call(tidy, {});
+        QCOMPARE(plan.value(QStringLiteral("renamed")).toArray().size(), 2);
+        QCOMPARE(plan.value(QStringLiteral("skipped")).toArray().size(), 1);
+        QVERIFY(QFileInfo::exists(root.filePath(QStringLiteral("Old note.md"))));
+        plan = api.call(tidy, {{QStringLiteral("folder"), QStringLiteral("Meetings")}});
+        QCOMPARE(plan.value(QStringLiteral("renamed")).toArray().size(), 1);
+        const QJsonObject done = api.call(tidy, {{QStringLiteral("apply"), true}});
+        QVERIFY(QFileInfo::exists(root.filePath(QStringLiteral("Old-note.md"))));
+        QVERIFY(QFileInfo::exists(root.filePath(QStringLiteral("Meetings/2026-10-22-Vendor-kickoff.md"))));
+        QVERIFY(QFileInfo::exists(root.filePath(QStringLiteral("Taken one.md"))));
+        QVERIFY(readFile(root.filePath(QStringLiteral("Meetings/2026-10-22-Vendor-kickoff.md"))).contains(QStringLiteral("[[Old-note]]")));
+        QVERIFY(done.value(QStringLiteral("linksUpdated")).toInt() >= 1);
+        QCOMPARE(api.call(tidy, {}).value(QStringLiteral("renamed")).toArray().size(), 0);
     }
 
     void writesMeetingNotesWithAnAgent() {
