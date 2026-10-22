@@ -4,6 +4,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QSaveFile>
+#include <QRegularExpression>
 #include <QSettings>
 
 namespace {
@@ -59,6 +60,19 @@ void Vault::setPanelVisible(bool visible) {
     m_panelVisible = visible;
     QSettings().setValue(panelVisibleSetting, visible);
     emit panelVisibleChanged();
+}
+
+QString Vault::fileNameSeparator() {
+    const QString value = QSettings().value(QStringLiteral("notes/fileNameSeparator"), QStringLiteral("-")).toString();
+    return value == QLatin1String("_") || value == QLatin1String(" ") ? value : QStringLiteral("-");
+}
+
+void Vault::setFileNameSeparator(const QString &separator) {
+    const QString value = separator == QLatin1String("_") || separator == QLatin1String(" ") ? separator : QStringLiteral("-");
+    if (value == fileNameSeparator())
+        return;
+    QSettings().setValue(QStringLiteral("notes/fileNameSeparator"), value);
+    emit fileNameSeparatorChanged();
 }
 
 void Vault::setAutoCreateLinks(bool enabled) {
@@ -213,6 +227,24 @@ QString Vault::cleanName(const QString &name) {
     return cleaned.trimmed();
 }
 
+QString Vault::noteFileName(const QString &name) {
+    QString cleaned = cleanName(name);
+    const QString separator = fileNameSeparator();
+    if (separator != QLatin1String(" ")) {
+        // "Plan - draft" becomes "Plan-draft", not "Plan---draft".
+        static const QRegularExpression spaced(QStringLiteral("\\s*([-_])\\s*"));
+        cleaned.replace(spaced, QStringLiteral("\\1"));
+        cleaned.replace(QLatin1Char(' '), separator);
+    }
+    return cleaned;
+}
+
+QString Vault::matchKey(const QString &name) {
+    QString key = name.toLower();
+    key.replace(QLatin1Char('-'), QLatin1Char(' ')).replace(QLatin1Char('_'), QLatin1Char(' '));
+    return key.simplified();
+}
+
 bool Vault::isNoteFile(const QString &path) {
     return noteSuffixes.contains(QFileInfo(path).suffix().toLower());
 }
@@ -243,7 +275,7 @@ QString Vault::createNote(const QString &folder, const QString &title) {
     if (name.isEmpty())
         name = QStringLiteral("Untitled");
 
-    const QString path = uniquePath(target, name, extension);
+    const QString path = uniquePath(target, noteFileName(name), extension);
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         setError(QStringLiteral("Could not create %1.").arg(QFileInfo(path).fileName()));
@@ -287,7 +319,7 @@ QString Vault::renameTarget(const QString &path, const QString &newName) {
         return QString();
     }
     const QFileInfo info(inside);
-    QString name = cleanName(newName);
+    QString name = info.isFile() ? noteFileName(newName) : cleanName(newName);
     if (name.isEmpty()) {
         setError(QStringLiteral("A name is needed."));
         return QString();

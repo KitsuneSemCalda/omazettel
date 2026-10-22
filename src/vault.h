@@ -25,6 +25,8 @@ class Vault : public QObject {
     Q_PROPERTY(bool panelVisible READ panelVisible WRITE setPanelVisible NOTIFY panelVisibleChanged)
     // Whether saving a note makes the notes its [[links]] name.
     Q_PROPERTY(bool autoCreateLinks READ autoCreateLinks WRITE setAutoCreateLinks NOTIFY autoCreateLinksChanged)
+    // What stands for a space in new note file names: "-", "_" or " ".
+    Q_PROPERTY(QString fileNameSeparator READ fileNameSeparator WRITE setFileNameSeparator NOTIFY fileNameSeparatorChanged)
 
 public:
     explicit Vault(QObject *parent = nullptr);
@@ -42,6 +44,8 @@ public:
     QString lastError() const { return m_lastError; }
     bool panelVisible() const { return m_panelVisible; }
     bool autoCreateLinks() const { return m_autoCreateLinks; }
+    static QString fileNameSeparator();
+    void setFileNameSeparator(const QString &separator);
     void setAutoCreateLinks(bool enabled);
     void setPanelVisible(bool visible);
 
@@ -84,6 +88,10 @@ public:
 
     // Helpers, public for the tests.
     static QString cleanName(const QString &name);
+    // A note's file name: cleanName with spaces swapped for the separator.
+    static QString noteFileName(const QString &name);
+    // A note name for matching links: lower case, with "-", "_" and spaces alike.
+    static QString matchKey(const QString &name);
     static bool isNoteFile(const QString &path);
     static QString uniquePath(const QString &folder, const QString &baseName,
                               const QString &extension);
@@ -96,6 +104,7 @@ signals:
     void lastErrorChanged();
     void panelVisibleChanged();
     void autoCreateLinksChanged();
+    void fileNameSeparatorChanged();
     // Notes or folders were created, renamed, moved or trashed.
     void contentsChanged();
 

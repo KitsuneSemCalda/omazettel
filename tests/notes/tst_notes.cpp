@@ -498,7 +498,7 @@ private slots:
         // A link to a note that does not exist yet makes it beside this one.
         const int inNew = QStringLiteral("# Start\n\nGo to [[Target]] or [[New").size();
         QMetaObject::invokeMethod(window.get(), "followLinkAt", Q_RETURN_ARG(QVariant, handled), Q_ARG(QVariant, inNew));
-        const QString created = dir.filePath(QStringLiteral("New idea.md"));
+        const QString created = dir.filePath(QStringLiteral("New-idea.md"));
         QVERIFY(QFile::exists(created));
         QCOMPARE(backend.fileUrl(), QUrl::fromLocalFile(created));
         // From the Note template, with its pandoc header.
@@ -563,8 +563,8 @@ private slots:
         QCOMPARE(switcher->property("results").toList().size(), 0);
         QMetaObject::invokeMethod(switcher, "accept");
         // Made in the selected folder, which follows the open note.
-        QVERIFY(QFile::exists(dir.filePath(QStringLiteral("Projects/Brand new.md"))));
-        QCOMPARE(backend.fileUrl(), QUrl::fromLocalFile(dir.filePath(QStringLiteral("Projects/Brand new.md"))));
+        QVERIFY(QFile::exists(dir.filePath(QStringLiteral("Projects/Brand-new.md"))));
+        QCOMPARE(backend.fileUrl(), QUrl::fromLocalFile(dir.filePath(QStringLiteral("Projects/Brand-new.md"))));
     }
 
     void panelShowsBacklinksAndTags() {
@@ -602,7 +602,7 @@ private slots:
             "---\ntitle: \"{{title}}\"\nauthor: \"{{author}}\"\ndate: \"{{date}}\"\nid: {{id}}\n---\n\n"
             "# {{title}}\n{{date:yyyy/MM}} {{time}} in {{folder}} {{unknown}}\n- {{cursor}}\n"),
             QStringLiteral("Plan \"Q4\""), QStringLiteral("Matt"), QStringLiteral("Work"), now);
-        QCOMPARE(rendered.fileName, QStringLiteral("2026-10-20 Plan \"Q4\""));
+        QCOMPARE(rendered.fileName, QStringLiteral("2026-10-20-Plan-\"Q4\""));
         QCOMPARE(rendered.folder, QStringLiteral("Meetings"));
         QVERIFY(rendered.openExisting);
         // Quotes are escaped in the YAML header only.
@@ -648,7 +648,7 @@ private slots:
         const QString today = QDate::currentDate().toString(Qt::ISODate);
         const QVariantMap meeting = templates.create(QStringLiteral("Meeting"), QStringLiteral("Kickoff"), dir.path());
         QCOMPARE(meeting.value(QStringLiteral("path")).toString(),
-                 dir.filePath(QStringLiteral("Meetings/%1 Kickoff.md").arg(today)));
+                 dir.filePath(QStringLiteral("Meetings/%1-Kickoff.md").arg(today)));
         const QString text = readFile(meeting.value(QStringLiteral("path")).toString());
         QVERIFY(text.contains(QStringLiteral("title: \"Kickoff\"")));
         QVERIFY(text.contains(QStringLiteral("author: \"Test Author\"")));
@@ -690,7 +690,7 @@ private slots:
         auto *field = window->findChild<QObject *>(QStringLiteral("nameField"));
         field->setProperty("text", QStringLiteral("Fresh idea"));
         QMetaObject::invokeMethod(dialog, "finish");
-        const QString path = dir.filePath(QStringLiteral("Fresh idea.md"));
+        const QString path = dir.filePath(QStringLiteral("Fresh-idea.md"));
         QVERIFY(QFile::exists(path));
         QCOMPARE(backend.fileUrl(), QUrl::fromLocalFile(path));
         QVERIFY(readFile(path).startsWith(QStringLiteral("---\ntitle: \"Fresh idea\"")));
@@ -2094,7 +2094,7 @@ private slots:
             {QStringLiteral("linkNotes"), false}});
         const QString kickoff = made.value(QStringLiteral("path")).toString();
         QVERIFY(kickoff.startsWith(QStringLiteral("Meetings/")));
-        QVERIFY(kickoff.endsWith(QStringLiteral(" Kickoff.md")));
+        QVERIFY(kickoff.endsWith(QStringLiteral("-Kickoff.md")));
         QString text = readFile(root.filePath(kickoff));
         QVERIFY(text.contains(QStringLiteral("tags: [\"meeting\", \"atlas\"]")));
         QVERIFY(text.contains(QStringLiteral("attendees: [\"Ann\"]")));
@@ -2123,10 +2123,10 @@ private slots:
         made = call(QStringLiteral("rename_note"), {{QStringLiteral("note"), QStringLiteral("Atlas")},
                                                     {QStringLiteral("name"), QStringLiteral("Atlas Program")}});
         QCOMPARE(made.value(QStringLiteral("linksUpdated")).toInt(), 1);
-        QVERIFY(readFile(root.filePath(kickoff)).contains(QStringLiteral("[[Atlas Program]]")));
+        QVERIFY(readFile(root.filePath(kickoff)).contains(QStringLiteral("[[Atlas-Program]]")));
         made = call(QStringLiteral("move_note"), {{QStringLiteral("note"), QStringLiteral("Atlas Program")},
                                                   {QStringLiteral("folder"), QStringLiteral("Archive/2026")}});
-        QCOMPARE(made.value(QStringLiteral("path")).toString(), QStringLiteral("Archive/2026/Atlas Program.md"));
+        QCOMPARE(made.value(QStringLiteral("path")).toString(), QStringLiteral("Archive/2026/Atlas-Program.md"));
 
         // Daily notes: a given day, added to under Log.
         made = call(QStringLiteral("daily_note"), {{QStringLiteral("date"), QStringLiteral("2026-01-05")},
@@ -2166,11 +2166,11 @@ private slots:
         QCOMPARE(answer({QStringLiteral("new"), QStringLiteral("Hello"), QStringLiteral("there"), QStringLiteral("--vault"),
                          root.path(), QStringLiteral("-t"), QStringLiteral("none"), QStringLiteral("--json")}),
                  std::optional<int>(0));
-        QVERIFY(QFileInfo::exists(root.filePath(QStringLiteral("Hello there.md"))));
+        QVERIFY(QFileInfo::exists(root.filePath(QStringLiteral("Hello-there.md"))));
         QCOMPARE(answer({QStringLiteral("append"), QStringLiteral("Hello there"), QStringLiteral("- [ ] task"),
                          QStringLiteral("--vault=") + root.path(), QStringLiteral("--json")}),
                  std::optional<int>(0));
-        QVERIFY(readFile(root.filePath(QStringLiteral("Hello there.md"))).endsWith(QStringLiteral("- [ ] task\n")));
+        QVERIFY(readFile(root.filePath(QStringLiteral("Hello-there.md"))).endsWith(QStringLiteral("- [ ] task\n")));
         QCOMPARE(answer({QStringLiteral("show"), QStringLiteral("--bogus"), QStringLiteral("--json")}), std::optional<int>(1));
         QCOMPARE(answer({QStringLiteral("nope")}), std::optional<int>(1));
         QCOMPARE(answer({QStringLiteral("help"), QStringLiteral("append")}), std::optional<int>(0));
@@ -2193,7 +2193,7 @@ private slots:
                                                    version);
         QVERIFY(!call.value(QStringLiteral("result")).toObject().value(QStringLiteral("isError")).toBool());
         QCOMPARE(call.value(QStringLiteral("result")).toObject().value(QStringLiteral("structuredContent")).toObject()
-                     .value(QStringLiteral("path")).toString(), QStringLiteral("Hello there.md"));
+                     .value(QStringLiteral("path")).toString(), QStringLiteral("Hello-there.md"));
         const QJsonObject missing = McpServer::handle(api, {{QStringLiteral("id"), 4}, {QStringLiteral("method"), QStringLiteral("tools/call")},
                                                             {QStringLiteral("params"), QJsonObject{{QStringLiteral("name"), QStringLiteral("read_note")},
                                                                                                    {QStringLiteral("arguments"), QJsonObject{{QStringLiteral("note"), QStringLiteral("gone")}}}}}},
@@ -2232,6 +2232,34 @@ private slots:
         QVERIFY(!error.isEmpty());
     }
 
+    void namesFilesWithTheSeparator() {
+        QCOMPARE(Vault::fileNameSeparator(), QStringLiteral("-"));
+        QCOMPARE(Vault::noteFileName(QStringLiteral("Plan  - draft one")), QStringLiteral("Plan-draft-one"));
+        QCOMPARE(Vault::matchKey(QStringLiteral("2026-10-22_Cutover-Plan")), QStringLiteral("2026 10 22 cutover plan"));
+        Vault vault;
+        vault.setFileNameSeparator(QStringLiteral("_"));
+        QCOMPARE(Vault::noteFileName(QStringLiteral("Cutover plan")), QStringLiteral("Cutover_plan"));
+        vault.setFileNameSeparator(QStringLiteral(" "));
+        QCOMPARE(Vault::noteFileName(QStringLiteral("Cutover plan")), QStringLiteral("Cutover plan"));
+        vault.setFileNameSeparator(QStringLiteral("-"));
+
+        // Links and note names find a note whatever separates its words.
+        QTemporaryDir root;
+        writeFile(root.filePath(QStringLiteral("Cutover-plan.md")), "# Cutover plan\n");
+        writeFile(root.filePath(QStringLiteral("Old note.md")), "See [[Cutover plan]] and [[old_note]].\n");
+        NotesApi api;
+        QString error;
+        QVERIFY(api.open(root.path(), &error));
+        const QJsonObject read = api.call(*NotesApi::toolNamed(QStringLiteral("read_note")),
+                                          {{QStringLiteral("note"), QStringLiteral("cutover plan")}});
+        QVERIFY(read.value(QStringLiteral("path")).toString().endsWith(QStringLiteral("Cutover-plan.md")));
+        const QJsonObject report = api.call(*NotesApi::toolNamed(QStringLiteral("link_report")), {});
+        QVERIFY(report.value(QStringLiteral("broken")).toArray().isEmpty());
+        QCOMPARE(api.call(*NotesApi::toolNamed(QStringLiteral("read_note")),
+                          {{QStringLiteral("note"), QStringLiteral("old-note")}}).value(QStringLiteral("path")).toString(),
+                 QStringLiteral("Old note.md"));
+    }
+
     void writesMeetingNotesWithAnAgent() {
         // A stand-in "claude" that answers like the real one.
         QTemporaryDir bin;
@@ -2263,14 +2291,23 @@ private slots:
         QCOMPARE(made.value(QStringLiteral("writtenBy")).toString(), QStringLiteral("Claude Code"));
         QCOMPARE(made.value(QStringLiteral("actionItems")).toArray().first().toString(), QStringLiteral("Bo: finish models (Thu)"));
         const QString path = made.value(QStringLiteral("path")).toString();
-        QVERIFY(path.startsWith(QStringLiteral("Meetings/")) && path.endsWith(QStringLiteral(" Cutover plan.md")));
+        QVERIFY(path.startsWith(QStringLiteral("Meetings/")) && path.endsWith(QStringLiteral("-Cutover-plan.md")));
         const QString text = readFile(root.filePath(path));
         QVERIFY(text.contains(QStringLiteral("attendees: [\"Ann\", \"Bo\"]")));
         QVERIFY(text.contains(QStringLiteral("abstract: \"Friday cutover agreed.\"")));
         QVERIFY(text.contains(QStringLiteral("**Attendees:** Ann, Bo\n")));
         QVERIFY(text.contains(QStringLiteral("## Agenda\n\n- Cutover\n")));
         QVERIFY(text.contains(QStringLiteral("## Decisions\n\n## Action items\n\n- [ ] Bo: finish models (Thu)\n")));
-        QVERIFY(text.contains(QStringLiteral("## Transcript\n\nAnn: Cutover Friday?\n\nBo: Yes, models by Thursday.\n")));
+        // The transcript is a note of its own beside it, each linking the other.
+        const QString base = QFileInfo(path).completeBaseName();
+        QVERIFY(!text.contains(QStringLiteral("Ann: Cutover Friday?")));
+        QVERIFY(text.contains(QStringLiteral("## Transcript\n\n[[%1-transcript]]\n").arg(base)));
+        const QString transcriptPath = made.value(QStringLiteral("transcriptNote")).toString();
+        QCOMPARE(transcriptPath, QStringLiteral("Meetings/%1-transcript.md").arg(base));
+        const QString transcript = readFile(root.filePath(transcriptPath));
+        QVERIFY(transcript.contains(QStringLiteral("Transcript of [[%1]], from call.vtt.").arg(base)));
+        QVERIFY(transcript.contains(QStringLiteral("Ann: Cutover Friday?\n\nBo: Yes, models by Thursday.\n")));
+        QVERIFY(transcript.contains(QStringLiteral("transcript")));
         // The AI was told the headings and the notes it may link.
         const QString prompt = readFile(bin.filePath(QStringLiteral("seen.txt")));
         QVERIFY(prompt.contains(QStringLiteral("\"Action items\":")));
@@ -2282,7 +2319,7 @@ private slots:
                                            {{QStringLiteral("file"), root.filePath(QStringLiteral("call.vtt"))},
                                             {QStringLiteral("note"), QString()},
                                             {QStringLiteral("ai"), QStringLiteral("none")}});
-        QVERIFY(plain.value(QStringLiteral("path")).toString().endsWith(QStringLiteral(" call.md")));
+        QVERIFY(plain.value(QStringLiteral("path")).toString().endsWith(QStringLiteral("-call.md")));
 
         // A missing AI is reported before anything is transcribed.
         bool refused = false;

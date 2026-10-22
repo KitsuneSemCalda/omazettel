@@ -285,7 +285,7 @@ NoteTemplates::Rendered NoteTemplates::render(const QString &templateText, const
     rendered.cursor = int(content.indexOf(QChar(2)));
     content.remove(QChar(2));
     rendered.content = content;
-    rendered.fileName = Vault::cleanName(fill(namePattern, false).remove(QChar(2)));
+    rendered.fileName = Vault::noteFileName(fill(namePattern, false).remove(QChar(2)));
     return rendered;
 }
 
@@ -317,7 +317,7 @@ QVariantMap NoteTemplates::createAt(const QString &name, const QString &title,
         if (!relative.startsWith(QLatin1String("..")) && !QDir::isAbsolutePath(relative))
             folderPath = QDir(m_root).filePath(relative);
     }
-    QString baseName = exactName.isEmpty() ? rendered.fileName : Vault::cleanName(exactName);
+    QString baseName = exactName.isEmpty() ? rendered.fileName : Vault::noteFileName(exactName);
     if (baseName.isEmpty())
         baseName = QStringLiteral("Untitled");
 

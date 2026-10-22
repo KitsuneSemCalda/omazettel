@@ -1,6 +1,7 @@
 #include "noteindex.h"
 
 #include "markdownhighlighter.h"
+#include "vault.h"
 
 #include <QDir>
 #include <QDirIterator>
@@ -144,7 +145,7 @@ void NoteIndex::rebuild() {
     m_tagSpelling.clear();
 
     for (const Note &note : std::as_const(m_notes))
-        m_byName[note.name.toLower()].append(note.path);
+        m_byName[Vault::matchKey(note.name)].append(note.path);
 
     // In path order, so which spelling of a tag shows, and the order of
     // backlinks, never depend on hash order.
@@ -179,20 +180,20 @@ QString NoteIndex::resolve(const QString &rawTarget, const QString &fromPath) co
     QStringList candidates;
     if (target.contains(QLatin1Char('/'))) {
         // A path: relative to the notes folder, matched from the end.
-        const QString wanted = QLatin1Char('/') + target.toLower();
+        const QString wanted = Vault::matchKey(QLatin1Char('/') + target);
         for (const Note &note : m_notes) {
-            const QString relative = stripNoteSuffix(note.path.mid(m_root.size())).toLower();
+            const QString relative = Vault::matchKey(stripNoteSuffix(note.path.mid(m_root.size())));
             if (relative.endsWith(wanted))
                 candidates.append(note.path);
         }
     } else {
-        candidates = m_byName.value(target.toLower());
+        candidates = m_byName.value(Vault::matchKey(target));
     }
 
     if (candidates.isEmpty()) {
         // Fall back to a note whose title matches.
         for (const Note &note : m_notes) {
-            if (note.title.compare(target, Qt::CaseInsensitive) == 0)
+            if (Vault::matchKey(note.title) == Vault::matchKey(target))
                 candidates.append(note.path);
         }
     }

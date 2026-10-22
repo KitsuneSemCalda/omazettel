@@ -194,6 +194,20 @@ Dialog {
                 onToggled: vault.autoCreateLinks = !vault.autoCreateLinks
             }
             Small { text: "Off: notes are only made when you Ctrl+click a link." }
+            RowLayout {
+                spacing: root.scaled(8)
+                Small { text: "Between words in new note file names" }
+                ComboBox {
+                    objectName: "fileNameSeparatorBox"
+                    readonly property var values: ["-", "_", " "]
+                    model: ["Hyphen  (Cutover-plan.md)", "Underscore  (Cutover_plan.md)", "Space  (Cutover plan.md)"]
+                    currentIndex: Math.max(0, values.indexOf(vault.fileNameSeparator))
+                    onActivated: function(index) { vault.fileNameSeparator = values[index]; }
+                    font.family: Qt.application.font.family
+                    font.pixelSize: root.scaled(12)
+                }
+            }
+            Small { text: "Links work either way: [[Cutover plan]] finds Cutover-plan.md." }
 
             // ── Export ──────────────────────────────────────────────────────
             Heading { text: "Export" }

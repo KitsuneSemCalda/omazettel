@@ -422,13 +422,13 @@ const QList<NotesApi::Tool> &NotesApi::tools() {
                         "video) are transcribed on this computer with Voxtype or whisper.cpp; voxtype:latest "
                         "imports Voxtype's last recorded meeting. With note, an AI (Omarchy's default agent, or "
                         "the one named by ai) then writes a meeting note from it: agenda, notes, decisions and "
-                        "action items, with the transcript kept below."),
+                        "action items, with the transcript in a linked note of its own."),
          {{QStringLiteral("file"), QStringLiteral("string"), QStringLiteral("The recording or transcript, or voxtype:latest"), false, true},
           {QStringLiteral("note"), QStringLiteral("string"), QStringLiteral("Write a meeting note, with this title (empty: the AI picks one)"), false, false, true},
           {QStringLiteral("ai"), QStringLiteral("string"), QStringLiteral("The AI that writes the note: claude, codex, gemini, opencode, ollama:<model>, anthropic[:<model>], openai:<model>, or none for the transcript alone (default: see omazettel ai)")},
           {QStringLiteral("template"), QStringLiteral("string"), QStringLiteral("Note template for the note (default Meeting)")},
           {QStringLiteral("folder"), QStringLiteral("string"), QStringLiteral("Folder for the note (default: the template's)")},
-          {QStringLiteral("transcript"), QStringLiteral("boolean"), QStringLiteral("Keep the transcript at the end of the note (default on)")},
+          {QStringLiteral("transcript"), QStringLiteral("boolean"), QStringLiteral("Keep the transcript in a separate note, linked from the meeting note (default on)")},
           {QStringLiteral("model"), QStringLiteral("string"), QStringLiteral("whisper.cpp model name or file for recordings (default: Voxtype's model, else the best downloaded)")},
           {QStringLiteral("language"), QStringLiteral("string"), QStringLiteral("Spoken language code for whisper, e.g. en (default: detect)")},
           {QStringLiteral("timestamps"), QStringLiteral("boolean"), QStringLiteral("Start each turn with its time")},
@@ -570,16 +570,16 @@ QString NotesApi::notePath(const QString &reference) const {
     }
 
     // A name, a path without .md, or a title.
-    const QString key = stripSuffix(ref).toLower();
+    const QString key = Vault::matchKey(stripSuffix(ref));
     QStringList byName;
     QStringList byTitle;
     for (const QVariant &entry : m_index.notes()) {
         const QVariantMap note = entry.toMap();
         const QString path = note.value(QStringLiteral("path")).toString();
-        if (note.value(QStringLiteral("name")).toString().toLower() == key
-                || stripSuffix(relative(path)).toLower() == key)
+        if (Vault::matchKey(note.value(QStringLiteral("name")).toString()) == key
+                || Vault::matchKey(stripSuffix(relative(path))) == key)
             byName.append(path);
-        else if (note.value(QStringLiteral("title")).toString().toLower() == key)
+        else if (Vault::matchKey(note.value(QStringLiteral("title")).toString()) == key)
             byTitle.append(path);
     }
     const QStringList &found = byName.isEmpty() ? byTitle : byName;
@@ -663,7 +663,7 @@ QJsonArray NotesApi::afterWrite(const QString &path, const QJsonObject &args) {
             const QVariantMap result = m_templates.create(QStringLiteral("Note"), name, folder, name);
             created = result.value(QStringLiteral("path")).toString();
         } else {
-            created = Vault::uniquePath(folder, Vault::cleanName(name), QStringLiteral("md"));
+            created = Vault::uniquePath(folder, Vault::noteFileName(name), QStringLiteral("md"));
             write(created, QStringLiteral("# %1\n").arg(name));
         }
         if (!created.isEmpty()) {
@@ -680,7 +680,7 @@ QString NotesApi::makeNote(const QString &title, const QString &templateName, co
     if (cursor)
         *cursor = -1;
     if (templateName.isEmpty() || templateName.compare(QLatin1String("none"), Qt::CaseInsensitive) == 0) {
-        const QString name = Vault::cleanName(stripSuffix(title));
+        const QString name = Vault::noteFileName(stripSuffix(title));
         const QString path = Vault::uniquePath(folder.isEmpty() ? m_root : folder,
                                                name.isEmpty() ? QStringLiteral("Untitled") : name,
                                                QStringLiteral("md"));
@@ -950,6 +950,7 @@ QJsonObject NotesApi::info(const QJsonObject &) {
             {QStringLiteral("pandoc"), exporter.pandocAvailable()},
             {QStringLiteral("sync"), syncInfo},
             {QStringLiteral("autoCreateLinks"), QSettings().value(QStringLiteral("notes/autoCreateLinks"), true).toBool()},
+            {QStringLiteral("fileNameSeparator"), Vault::fileNameSeparator()},
             {QStringLiteral("transcription"), QJsonObject{
                  {QStringLiteral("engine"), engine.isEmpty() ? QJsonValue() : QJsonValue(engine)},
                  {QStringLiteral("model"), model.isEmpty() ? QJsonValue() : QJsonValue(QFileInfo(model).fileName())},
@@ -1165,7 +1166,7 @@ QJsonObject NotesApi::createNote(const QJsonObject &args) {
     int cursor = -1;
     QString path;
     if (ownHeader) {
-        const QString name = Vault::cleanName(title);
+        const QString name = Vault::noteFileName(title);
         path = Vault::uniquePath(folder.isEmpty() ? m_root : folder, name, QStringLiteral("md"));
         write(path, content.trimmed());
     } else {
@@ -1290,7 +1291,7 @@ QJsonObject NotesApi::writeNote(const QJsonObject &args) {
             throw;
         const int slash = int(reference.lastIndexOf(QLatin1Char('/')));
         const QString folder = slash < 0 ? m_root : folderPath(reference.left(slash), true);
-        const QString name = Vault::cleanName(stripSuffix(reference.mid(slash + 1)));
+        const QString name = Vault::noteFileName(stripSuffix(reference.mid(slash + 1)));
         if (name.isEmpty())
             fail(QStringLiteral("Name the note."));
         path = Vault::uniquePath(folder, name, QStringLiteral("md"));
@@ -1387,7 +1388,8 @@ QJsonObject NotesApi::renameNote(const QJsonObject &args) {
         from = asFolder;
     else
         from = notePath(reference);
-    QString name = Vault::cleanName(str(args, QStringLiteral("name")));
+    QString name = QFileInfo(from).isFile() ? Vault::noteFileName(str(args, QStringLiteral("name")))
+                                            : Vault::cleanName(str(args, QStringLiteral("name")));
     if (name.isEmpty())
         fail(QStringLiteral("Give the new name."));
     if (QFileInfo(from).isFile() && !Vault::isNoteFile(name))
@@ -1812,8 +1814,6 @@ QJsonObject NotesApi::meetingNote(const QString &transcript, const QStringList &
         create.insert(QStringLiteral("title"), QFileInfo(source).completeBaseName());
     if (!attendees.isEmpty())
         meta.insert(QStringLiteral("attendees"), toJsonArray(attendees));
-    if (keepTranscript)
-        sections.insert(QStringLiteral("Transcript"), transcript.trimmed());
     create.insert(QStringLiteral("sections"), sections);
     create.insert(QStringLiteral("meta"), meta);
 
@@ -1828,14 +1828,41 @@ QJsonObject NotesApi::meetingNote(const QString &transcript, const QStringList &
             write(path, text);
         }
     }
-    QJsonArray actions;
     const QString path = QDir(m_root).filePath(result.value(QStringLiteral("path")).toString());
+    // The transcript goes in a note of its own beside the meeting note, each linking the other.
+    if (keepTranscript) {
+        const QString meetingName = QFileInfo(path).completeBaseName();
+        const QString folder = QFileInfo(result.value(QStringLiteral("path")).toString()).path();
+        QJsonObject meta{{QStringLiteral("source"), source},
+                         {QStringLiteral("meeting"), QStringLiteral("[[%1]]").arg(meetingName)},
+                         {QStringLiteral("tags"), QJsonArray{QStringLiteral("transcript")}}};
+        const QString date = readMeta(read(path)).value(QStringLiteral("date")).toString();
+        if (!date.isEmpty())
+            meta.insert(QStringLiteral("date"), date);
+        const QJsonObject made = createNote({
+            {QStringLiteral("title"), meetingName + QStringLiteral(" transcript")},
+            {QStringLiteral("template"), QStringLiteral("none")},
+            {QStringLiteral("folder"), folder == QLatin1String(".") ? QString() : folder},
+            {QStringLiteral("content"), QStringLiteral("Transcript of [[%1]], from %2.\n\n%3\n")
+                                            .arg(meetingName, source, transcript.trimmed())},
+            {QStringLiteral("meta"), meta},
+            {QStringLiteral("linkNotes"), false}});
+        const QString transcriptPath = made.value(QStringLiteral("path")).toString();
+        write(path, replaceSection(read(path), QStringLiteral("Transcript"),
+                                   QStringLiteral("[[%1]]").arg(QFileInfo(transcriptPath).completeBaseName())));
+        m_index.updateFile(path);
+        result.insert(QStringLiteral("transcriptNote"), transcriptPath);
+    }
+    QJsonArray actions;
     for (const Task &task : tasks(read(path)))
         actions.append(task.text);
     result.insert(QStringLiteral("source"), source);
     result.insert(QStringLiteral("writtenBy"), writer.isEmpty() ? QStringLiteral("no AI (transcript only)") : writer);
     result.insert(QStringLiteral("actionItems"), actions);
-    result.insert(QStringLiteral("message"), QStringLiteral("Created %1%2").arg(result.value(QStringLiteral("path")).toString(),
-                  writer.isEmpty() ? QString() : QStringLiteral(" (written by %1)").arg(writer)));
+    result.insert(QStringLiteral("message"), QStringLiteral("Created %1%2%3").arg(result.value(QStringLiteral("path")).toString(),
+                  writer.isEmpty() ? QString() : QStringLiteral(" (written by %1)").arg(writer),
+                  result.contains(QStringLiteral("transcriptNote"))
+                      ? QStringLiteral("\nTranscript in %1").arg(result.value(QStringLiteral("transcriptNote")).toString())
+                      : QString()));
     return result;
 }

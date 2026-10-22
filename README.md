@@ -173,6 +173,11 @@ xdg-mime default omazettel.desktop text/markdown text/x-markdown
 - **Links to new notes** create those notes when the note is saved, next to it
   or at the path the link names, from the Note template. The link you are still
   typing waits. Turn this off in Settings to create notes only on Ctrl+click.
+- **File names** use hyphens between words (`2026-10-22-Cutover-plan.md`);
+  the title inside the note keeps its spaces. Settings can switch to
+  underscores or spaces. Links don't mind which: `[[Cutover plan]]`,
+  `[[cutover-plan]]` and `[[Cutover_plan]]` all find the same note, so older
+  notes with spaces keep working.
 - **Renaming or moving** a note, or a folder of notes, updates every link to it
   and keeps `#heading` and `|label`. The status bar says how many links changed.
 - **Tag** with `#tag` (nested: `#project/client`), or `tags: [a, b]` or
@@ -387,10 +392,11 @@ omazettel transcribe voxtype:latest --note                 # Voxtype's last reco
 OmaZettel reads the captions or transcript (Teams, Zoom and Meet `.vtt`/`.srt`,
 `.docx`, `.txt`), or transcribes a recording (`.m4a`, `.mp3`, `.mp4`, ...) on
 your computer. Then an AI writes a Meeting note: title, attendees, a summary,
-Agenda, Notes, Decisions and Action items as `- [ ] Owner: task (due)`, with
-the transcript kept at the end and links to notes the meeting is about.
-`--ai none` makes the note with the transcript alone, `--no-transcript` leaves
-the transcript out, and `-t` and `-f` choose another template or folder.
+Agenda, Notes, Decisions and Action items as `- [ ] Owner: task (due)`, and
+links to notes the meeting is about. The transcript goes in a note of its own
+beside it (`<meeting>-transcript`), and the two link to each other.
+`--ai none` makes the notes without an AI summary, `--no-transcript` skips
+the transcript note, and `-t` and `-f` choose another template or folder.
 Without `--note`, `transcribe` prints the transcript.
 
 *Transcribing recordings* uses Voxtype, Omarchy's dictation, with the model you

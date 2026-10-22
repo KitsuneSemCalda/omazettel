@@ -72,8 +72,8 @@ leaves `$`, backticks and `!` alone.
 
 When the person just wants the note, one command does it all: OmaZettel
 transcribes, then the person's own AI (Omarchy's default agent, or `--ai`)
-writes the Meeting note: summary, Agenda, Notes, Decisions, Action items and
-the transcript.
+writes the Meeting note: summary, Agenda, Notes, Decisions and Action items.
+The transcript goes in a separate linked note beside it (`<meeting>-transcript`).
 
 ```sh
 omazettel transcribe ~/Downloads/standup.vtt --note --json        # AI picks the title
@@ -81,7 +81,7 @@ omazettel transcribe call.m4a --note "Vendor kickoff" --json
 omazettel transcribe voxtype:latest --note --json                 # Voxtype's last meeting
 ```
 
-The answer has `path`, `actionItems` and `writtenBy`. If it fails with a
+The answer has `path`, `transcriptNote`, `actionItems` and `writtenBy`. If it fails with a
 message about a missing AI, speech model or sign-in, pass the message on: it
 says what to install or run (`omazettel ai` shows the whole picture). Don't
 install things yourself. `--ai none` still makes a note with the transcript.
