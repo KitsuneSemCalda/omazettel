@@ -569,8 +569,7 @@ Issues and pull requests are welcome. Please:
 
 ## Credits and license
 
-OmaZettel is licensed under the GNU General Public License, version 3 or later
-(`GPL-3.0-or-later`); see [`LICENSE`](LICENSE).
+Copyright (c) 2026 Matthew Smith. GPL-3.0-or-later licence; see [`LICENSE`](LICENSE).
 
 It started from [Omawrite](https://github.com/omacom/omawrite) by David
 Heinemeier Hansson, under the MIT license
