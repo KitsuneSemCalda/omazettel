@@ -14,7 +14,7 @@ OmaZettel is an independent fork of [Omawrite](https://github.com/omacom/omawrit
 by David Heinemeier Hansson, extended into a notes system. It is not made or
 endorsed by Omacom or the Omarchy project.
 
-> **Status: 0.7.0, early.** Everything below works and is covered by tests, but
+> **Status: 0.8.0, early.** Everything below works and is covered by tests, but
 > OmaZettel is young: expect rough edges, and keep your notes folder in git or
 > another backup. Bug reports and ideas are welcome in the issues.
 
@@ -117,18 +117,27 @@ sudo pacman -S --needed pandoc-cli texlive-xetex github-cli
 
 ## Install
 
-Clone OmaZettel and run the installer. It builds the app and installs it as a
-package with pacman, so it appears in the app launcher (it asks for your
-password):
+On Omarchy or Arch Linux, paste this in a terminal (it asks for your password):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/mcsmith3/omazettel/master/install.sh | bash
+```
+
+It downloads the latest release's package, checks it against the release's
+`SHA256SUMS`, and installs it with pacman, so OmaZettel appears in the app
+launcher. On machines without a ready-made package (such as ARM) it builds one
+from the release's source instead.
+
+**Update:** run the same line again. **Uninstall:** `sudo pacman -R omazettel`;
+your notes are untouched.
+
+To install from a clone instead (for example, to try unreleased changes):
 
 ```sh
 git clone https://github.com/mcsmith3/omazettel.git
 cd omazettel
 ./bin/install
 ```
-
-To update later, `git pull` and run `./bin/install` again. To remove it,
-`sudo pacman -R omazettel`; your notes are untouched.
 
 ## Getting started
 
