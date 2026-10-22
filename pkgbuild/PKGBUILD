@@ -6,7 +6,7 @@
 # and build in "$srcdir/omazettel".
 
 pkgname=omazettel
-pkgver=0.6.1
+pkgver=0.7.0
 pkgrel=1
 pkgdesc='Zettelkasten notes in plain Markdown files: links, backlinks, tags, templates, pandoc export and git sync'
 arch=('x86_64' 'aarch64')
@@ -22,7 +22,9 @@ optdepends=('ttf-jetbrains-mono-nerd: the monospace font Omarchy uses (any monos
             'texlive-latex: PDF export with pdflatex'
             'git: version history and sync'
             'github-cli: create a private GitHub repository for sync'
-            'libreoffice-fresh: edit Word and OpenDocument reference documents')
+            'libreoffice-fresh: edit Word and OpenDocument reference documents'
+            'ffmpeg: transcribe meeting recordings'
+            'whisper.cpp: transcribe meeting recordings on this computer')
 options=('!debug')
 source=()
 sha256sums=()
@@ -39,6 +41,7 @@ package() {
   /usr/bin/install -Dm644 LICENSES/MIT-omawrite.txt "$pkgdir/usr/share/licenses/$pkgname/MIT-omawrite.txt"
   /usr/bin/install -Dm644 THIRD-PARTY-NOTICES.md "$pkgdir/usr/share/licenses/$pkgname/THIRD-PARTY-NOTICES.md"
   /usr/bin/install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+  /usr/bin/install -Dm644 skills/omazettel/SKILL.md "$pkgdir/usr/share/$pkgname/skills/omazettel/SKILL.md"
   /usr/bin/install -Dm644 themed/omazettel.toml.tpl "$pkgdir/usr/share/$pkgname/themed/omazettel.toml.tpl"
   /usr/bin/install -Dm644 "$startdir/omazettel.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/omazettel.svg"
   /usr/bin/install -Dm644 "$startdir/omazettel.desktop" "$pkgdir/usr/share/applications/omazettel.desktop"

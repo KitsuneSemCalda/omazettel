@@ -539,7 +539,7 @@ ApplicationWindow {
         case "exportFolder": exportDialog.openForFolder(vault.folderFor(currentPath()), noteTemplates.author); break;
         case "exportAll": exportDialog.openForFolder(vault.rootPath, noteTemplates.author); break;
         case "history": openHistory(currentPath()); break;
-        case "syncNow": syncNotes(); break;
+        case "syncNow": syncNotes(true); break;
         case "syncDialog": syncDialog.open(); break;
         case "citations": citationsDialog.open(); break;
         case "templates":
@@ -566,9 +566,14 @@ ApplicationWindow {
 
     // Saves the open note, then syncs; the open note is reloaded afterwards
     // if the sync changed it.
-    function syncNotes() {
+    // Whether the running sync was asked for (so a failure opens Sync &
+    // history with the reason) rather than automatic.
+    property bool manualSync: false
+
+    function syncNotes(manual) {
         if (!sync.isRepo || sync.busy)
             return;
+        win.manualSync = manual === true;
         backend.flushAutoSave();
         backend.pauseFileWatching();
         if (!sync.syncNow()) {
@@ -830,7 +835,7 @@ ApplicationWindow {
 
     Shortcut {
         sequence: "Ctrl+Alt+S"
-        onActivated: win.syncNotes()
+        onActivated: win.syncNotes(true)
     }
 
     Shortcut {
@@ -1063,7 +1068,7 @@ ApplicationWindow {
         onExportFolderRequested: function(path) { exportDialog.openForFolder(path, noteTemplates.author); }
         onCitationsRequested: citationsDialog.open()
         onSyncDialogRequested: syncDialog.open()
-        onSyncNowRequested: win.syncNotes()
+        onSyncNowRequested: win.syncNotes(true)
         onHistoryRequested: function(path) { win.openHistory(path); }
         onSettingsRequested: settingsDialog.open()
         onSearchResultRequested: function(path, position, length) { win.openSearchResult(path, position, length); }
@@ -1154,7 +1159,7 @@ ApplicationWindow {
         borderColor: win.borderColor
         containerWidth: win.width
         containerHeight: win.height
-        onSyncRequested: win.syncNotes()
+        onSyncRequested: win.syncNotes(true)
         onCompareRequested: function(path) { conflictDialog.openFor(path); }
         onEditConflictRequested: function(path) { close(); win.openNote(vault.urlForPath(path)); }
         onResolveRequested: function(path, choice) { win.resolveConflict(path, choice); }
@@ -1198,9 +1203,13 @@ ApplicationWindow {
         target: sync
         function onSynced(ok, updatedFiles) {
             win.afterFilesChanged();
-            backend.showStatus(sync.message);
-            if (sync.state === "conflict")
+            backend.showStatus(ok ? sync.message : "Sync failed: " + sync.message);
+            // A failure someone asked about, or one that needs them, opens
+            // Sync & history with the reason.
+            if (sync.state === "conflict" || (!ok && (win.manualSync || sync.errorKind === "private-email"
+                                                      || sync.errorKind === "auth" || sync.errorKind === "ssh-key")))
                 syncDialog.open();
+            win.manualSync = false;
         }
         function onAutoSyncDue() {
             win.syncNotes();

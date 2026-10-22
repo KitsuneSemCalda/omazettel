@@ -10,10 +10,17 @@
 #include <QQuickWindow>
 #include <QSignalSpy>
 #include <QStandardPaths>
+#include <QJsonArray>
+#include <QJsonObject>
 
 #include "apptheme.h"
+#include "assistant.h"
 #include "backend.h"
 #include "citations.h"
+#include "cli.h"
+#include "mcpserver.h"
+#include "notesapi.h"
+#include "transcriber.h"
 #include "exporter.h"
 #include "noteindex.h"
 #include "notetemplates.h"
@@ -49,6 +56,8 @@ private slots:
         QSettings::setDefaultFormat(QSettings::IniFormat);
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
                            m_settingsDirectory.path());
+        // The sync log goes in the test's folder, not the real one.
+        qputenv("XDG_STATE_HOME", m_settingsDirectory.path().toUtf8());
     }
 
     void init() {
@@ -1599,7 +1608,7 @@ private slots:
         QVERIFY(m_windowSync->enable());
         writeFile(dir.filePath(QStringLiteral("Note.md")), "version two\n");
         QSignalSpy synced(m_windowSync.get(), &Sync::synced);
-        QMetaObject::invokeMethod(window.get(), "syncNotes");
+        QMetaObject::invokeMethod(window.get(), "syncNotes", Q_ARG(QVariant, QVariant(true)));
         QVERIFY(synced.wait(60000));
         QCOMPARE(m_windowSync->state(), QStringLiteral("local"));
 
@@ -1974,6 +1983,384 @@ private slots:
         vault.setSidebarVisible(false);
         QVERIFY(!sidebar->isVisible());
         QCOMPARE(window->property("contentWidth").toInt(), window->property("width").toInt());
+    }
+
+    // ── Command line and MCP ────────────────────────────────────────────────
+
+    void editsSectionsAndHeaders() {
+        const QString note = QStringLiteral(
+            "---\ntitle: \"Kickoff\"\ntags: [meeting]\nattendees:\n  - Ann\n---\n\n"
+            "## Agenda\n\n- \n\n## Notes\n\nFirst.\n\n### Detail\n\nDeep.\n\n## Action items\n\n- [ ] \n");
+
+        // Empty template bullets make way; list items join the list.
+        QString text = NotesApi::appendText(note, QStringLiteral("- [ ] Ann: send deck"), QStringLiteral("Action items"));
+        QVERIFY(text.endsWith(QStringLiteral("## Action items\n\n- [ ] Ann: send deck\n")));
+        text = NotesApi::appendText(text, QStringLiteral("- [ ] Bo: book room"), QStringLiteral("## action ITEMS"));
+        QVERIFY(text.contains(QStringLiteral("- [ ] Ann: send deck\n- [ ] Bo: book room\n")));
+
+        // A section runs to the next heading of its level, subsections included.
+        text = NotesApi::appendText(text, QStringLiteral("Second."), QStringLiteral("Notes"));
+        QVERIFY(text.contains(QStringLiteral("Deep.\n\nSecond.\n\n## Action items")));
+
+        // Missing sections are added at the end.
+        text = NotesApi::appendText(text, QStringLiteral("Late data."), QStringLiteral("Risks"));
+        QVERIFY(text.endsWith(QStringLiteral("- [ ] Bo: book room\n\n## Risks\n\nLate data.\n")));
+
+        text = NotesApi::replaceSection(text, QStringLiteral("Agenda"), QStringLiteral("- Budget\n- Dates"));
+        QVERIFY(text.contains(QStringLiteral("## Agenda\n\n- Budget\n- Dates\n\n## Notes")));
+        text = NotesApi::replaceSection(text, QStringLiteral("Agenda"), QString());
+        QVERIFY(text.contains(QStringLiteral("## Agenda\n\n## Notes")));
+
+        // The header: replace a block list, add, remove.
+        text = NotesApi::setMeta(text, {{QStringLiteral("attendees"), QJsonArray{QStringLiteral("Ann"), QStringLiteral("Bo")}},
+                                        {QStringLiteral("status"), QStringLiteral("draft \"v1\"")},
+                                        {QStringLiteral("tags"), QJsonValue()}});
+        QVERIFY(text.startsWith(QStringLiteral("---\ntitle: \"Kickoff\"\nattendees: [\"Ann\", \"Bo\"]\nstatus: \"draft \\\"v1\\\"\"\n---\n")));
+        const QJsonObject meta = NotesApi::readMeta(text);
+        QCOMPARE(meta.value(QStringLiteral("title")).toString(), QStringLiteral("Kickoff"));
+        QCOMPARE(meta.value(QStringLiteral("attendees")).toArray().size(), 2);
+        QCOMPARE(meta.value(QStringLiteral("status")).toString(), QStringLiteral("draft \"v1\""));
+        QVERIFY(!meta.contains(QStringLiteral("tags")));
+        QCOMPARE(NotesApi::readMeta(note).value(QStringLiteral("attendees")).toArray().first().toString(), QStringLiteral("Ann"));
+
+        // A note with no header gets one.
+        QCOMPARE(NotesApi::setMeta(QStringLiteral("# Hi\n"), {{QStringLiteral("n"), 2}}),
+                 QStringLiteral("---\nn: 2\n---\n\n# Hi\n"));
+
+        // Content goes where the template's cursor was, in place of an empty bullet.
+        const QString drafted = QStringLiteral("## Agenda\n\n- \n\n## Notes\n");
+        QCOMPARE(NotesApi::insertAt(drafted, 13, QStringLiteral("- One\n- Two")),
+                 QStringLiteral("## Agenda\n\n- One\n- Two\n\n## Notes\n"));
+
+        // Tasks, not inside code or the header.
+        const QList<NotesApi::Task> tasks = NotesApi::tasks(QStringLiteral(
+            "---\nx: \"- [ ] no\"\n---\n- [ ] one\n```\n- [ ] code\n```\n  * [x] two\n- [ ] \n"));
+        QCOMPARE(tasks.size(), 2);
+        QCOMPARE(tasks.at(0).text, QStringLiteral("one"));
+        QCOMPARE(tasks.at(0).line, 4);
+        QVERIFY(tasks.at(1).done);
+    }
+
+    void readsCaptionFiles() {
+        const QString vtt = QStringLiteral(
+            "WEBVTT\n\nNOTE made by Teams\n\n1\n00:00:01.000 --> 00:00:03.000\n<v Ann Lee>Hello &amp; welcome.</v>\n\n"
+            "2\n00:00:03.500 --> 00:00:05.000\n<v Ann Lee>Let's start.</v>\n\n"
+            "3\n00:01:05.000 --> 00:01:07.000\n<v Bo>Thanks.</v>\n");
+        QStringList speakers;
+        QCOMPARE(Transcriber::fromCaptions(vtt, false, &speakers),
+                 QStringLiteral("Ann Lee: Hello & welcome. Let's start.\n\nBo: Thanks."));
+        QCOMPARE(speakers, (QStringList{QStringLiteral("Ann Lee"), QStringLiteral("Bo")}));
+        QVERIFY(Transcriber::fromCaptions(vtt, true).startsWith(QStringLiteral("[00:00:01] Ann Lee: Hello")));
+
+        const QString srt = QStringLiteral(
+            "1\r\n00:00:01,000 --> 00:00:02,000\r\nAnn: One\r\n\r\n2\r\n00:00:02,000 --> 00:00:03,000\r\nAnn: One two\r\n");
+        QCOMPARE(Transcriber::fromCaptions(srt, false), QStringLiteral("Ann: One two"));
+
+        // Untimed lines with no speaker stay paragraphs of their own.
+        QCOMPARE(Transcriber::fromCaptions(QStringLiteral("First.\n\nSecond.\n"), false),
+                 QStringLiteral("First.\n\nSecond."));
+    }
+
+    void runsNoteToolsOnAFolder() {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        writeFile(root.filePath(QStringLiteral("Projects/Atlas.md")), "# Atlas\n\nSee [[Kickoff]].\n");
+        writeFile(root.filePath(QStringLiteral("A/Same.md")), "# One\n");
+        writeFile(root.filePath(QStringLiteral("B/Same.md")), "# Two\n");
+
+        NotesApi api;
+        QString error;
+        QVERIFY(api.open(root.path(), &error));
+        const auto call = [&api](const QString &tool, const QJsonObject &args) {
+            return api.call(*NotesApi::toolNamed(tool), args);
+        };
+        const auto fails = [&call](const QString &tool, const QJsonObject &args) {
+            try {
+                call(tool, args);
+            } catch (const NotesApi::Error &error) {
+                return error.message;
+            }
+            return QString();
+        };
+
+        // A meeting note from the template, filled in.
+        QJsonObject made = call(QStringLiteral("create_note"), {
+            {QStringLiteral("title"), QStringLiteral("Kickoff")},
+            {QStringLiteral("template"), QStringLiteral("meeting")},
+            {QStringLiteral("sections"), QJsonObject{{QStringLiteral("Notes"), QStringLiteral("Talked about [[Atlas]] and [[Budget]].")},
+                                                     {QStringLiteral("Action items"), QJsonArray{QStringLiteral("[ ] Ann: deck")}}}},
+            {QStringLiteral("meta"), QJsonObject{{QStringLiteral("attendees"), QJsonArray{QStringLiteral("Ann")}}}},
+            {QStringLiteral("tags"), QJsonArray{QStringLiteral("atlas")}},
+            {QStringLiteral("linkNotes"), false}});
+        const QString kickoff = made.value(QStringLiteral("path")).toString();
+        QVERIFY(kickoff.startsWith(QStringLiteral("Meetings/")));
+        QVERIFY(kickoff.endsWith(QStringLiteral(" Kickoff.md")));
+        QString text = readFile(root.filePath(kickoff));
+        QVERIFY(text.contains(QStringLiteral("tags: [\"meeting\", \"atlas\"]")));
+        QVERIFY(text.contains(QStringLiteral("attendees: [\"Ann\"]")));
+        QVERIFY(text.contains(QStringLiteral("## Action items\n\n- [ ] Ann: deck\n")));
+        QVERIFY(!QFileInfo::exists(root.filePath(QStringLiteral("Meetings/Budget.md"))));
+
+        // Links to notes that do not exist make them, when asked.
+        made = call(QStringLiteral("append_to_note"), {{QStringLiteral("note"), QStringLiteral("kickoff")},
+                                                       {QStringLiteral("text"), QStringLiteral("- [ ] Bo: [[Budget]]")},
+                                                       {QStringLiteral("section"), QStringLiteral("Action items")},
+                                                       {QStringLiteral("linkNotes"), true}});
+        QCOMPARE(made.value(QStringLiteral("linkedNotesCreated")).toArray().first().toString(), QStringLiteral("Meetings/Budget.md"));
+        QVERIFY(readFile(root.filePath(kickoff)).contains(QStringLiteral("- [ ] Ann: deck\n- [ ] Bo: [[Budget]]\n")));
+
+        // Found by name, title or path; several of one name need a path.
+        QCOMPARE(call(QStringLiteral("read_note"), {{QStringLiteral("note"), QStringLiteral("Atlas")}})
+                     .value(QStringLiteral("backlinks")).toArray().size(), 1);
+        QVERIFY(fails(QStringLiteral("read_note"), {{QStringLiteral("note"), QStringLiteral("Same")}}).contains(QStringLiteral("several")));
+        QCOMPARE(call(QStringLiteral("read_note"), {{QStringLiteral("note"), QStringLiteral("B/Same")}})
+                     .value(QStringLiteral("title")).toString(), QStringLiteral("Two"));
+        QVERIFY(fails(QStringLiteral("read_note"), {{QStringLiteral("note"), QStringLiteral("Nope")}}).contains(QStringLiteral("no note")));
+        QVERIFY(fails(QStringLiteral("create_note"), {{QStringLiteral("title"), QStringLiteral("X")},
+                                                      {QStringLiteral("folder"), QStringLiteral("../out")}}).contains(QStringLiteral("outside")));
+
+        // Renaming rewrites the links to it.
+        made = call(QStringLiteral("rename_note"), {{QStringLiteral("note"), QStringLiteral("Atlas")},
+                                                    {QStringLiteral("name"), QStringLiteral("Atlas Program")}});
+        QCOMPARE(made.value(QStringLiteral("linksUpdated")).toInt(), 1);
+        QVERIFY(readFile(root.filePath(kickoff)).contains(QStringLiteral("[[Atlas Program]]")));
+        made = call(QStringLiteral("move_note"), {{QStringLiteral("note"), QStringLiteral("Atlas Program")},
+                                                  {QStringLiteral("folder"), QStringLiteral("Archive/2026")}});
+        QCOMPARE(made.value(QStringLiteral("path")).toString(), QStringLiteral("Archive/2026/Atlas Program.md"));
+
+        // Daily notes: a given day, added to under Log.
+        made = call(QStringLiteral("daily_note"), {{QStringLiteral("date"), QStringLiteral("2026-01-05")},
+                                                   {QStringLiteral("append"), QStringLiteral("- shipped")}});
+        QCOMPARE(made.value(QStringLiteral("path")).toString(), QStringLiteral("Daily/2026-01-05.md"));
+        QVERIFY(made.value(QStringLiteral("text")).toString().contains(QStringLiteral("## Log\n\n- shipped\n")));
+        QVERIFY(made.value(QStringLiteral("text")).toString().contains(QStringLiteral("Monday 5 January 2026")));
+        made = call(QStringLiteral("daily_note"), {{QStringLiteral("date"), QStringLiteral("2026-01-05")}});
+        QVERIFY(!made.value(QStringLiteral("created")).toBool());
+
+        call(QStringLiteral("capture"), {{QStringLiteral("text"), QStringLiteral("Call the bank")}, {QStringLiteral("task"), true}});
+        const QJsonArray open = call(QStringLiteral("list_tasks"), {}).value(QStringLiteral("tasks")).toArray();
+        QStringList openTexts;
+        for (const QJsonValue &task : open)
+            openTexts.append(task.toObject().value(QStringLiteral("text")).toString());
+        QCOMPARE(openTexts, (QStringList{QStringLiteral("Call the bank"), QStringLiteral("Ann: deck"), QStringLiteral("Bo: [[Budget]]")}));
+
+        // Content with its own header is written as given.
+        made = call(QStringLiteral("create_note"), {{QStringLiteral("title"), QStringLiteral("Raw")},
+                                                    {QStringLiteral("content"), QStringLiteral("---\ntitle: Raw\n---\nBody")}});
+        QCOMPARE(readFile(root.filePath(QStringLiteral("Raw.md"))), QStringLiteral("---\ntitle: Raw\n---\nBody\n"));
+
+        QCOMPARE(call(QStringLiteral("search_notes"), {{QStringLiteral("query"), QStringLiteral("shipped")}})
+                     .value(QStringLiteral("results")).toArray().first().toObject().value(QStringLiteral("path")).toString(),
+                 QStringLiteral("Daily/2026-01-05.md"));
+        QCOMPARE(call(QStringLiteral("list_notes"), {{QStringLiteral("tag"), QStringLiteral("atlas")}})
+                     .value(QStringLiteral("count")).toInt(), 1);
+    }
+
+    void answersCommandsAndMcp() {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        const QString version = QStringLiteral("9.9");
+        const auto answer = [&](const QStringList &arguments) {
+            return Cli::handleArguments(QStringList{QStringLiteral("omazettel")} + arguments, version);
+        };
+        QCOMPARE(answer({QStringLiteral("new"), QStringLiteral("Hello"), QStringLiteral("there"), QStringLiteral("--vault"),
+                         root.path(), QStringLiteral("-t"), QStringLiteral("none"), QStringLiteral("--json")}),
+                 std::optional<int>(0));
+        QVERIFY(QFileInfo::exists(root.filePath(QStringLiteral("Hello there.md"))));
+        QCOMPARE(answer({QStringLiteral("append"), QStringLiteral("Hello there"), QStringLiteral("- [ ] task"),
+                         QStringLiteral("--vault=") + root.path(), QStringLiteral("--json")}),
+                 std::optional<int>(0));
+        QVERIFY(readFile(root.filePath(QStringLiteral("Hello there.md"))).endsWith(QStringLiteral("- [ ] task\n")));
+        QCOMPARE(answer({QStringLiteral("show"), QStringLiteral("--bogus"), QStringLiteral("--json")}), std::optional<int>(1));
+        QCOMPARE(answer({QStringLiteral("nope")}), std::optional<int>(1));
+        QCOMPARE(answer({QStringLiteral("help"), QStringLiteral("append")}), std::optional<int>(0));
+        QVERIFY(Cli::verbUsage(QStringLiteral("new")).contains(QStringLiteral("--sections")));
+
+        NotesApi api;
+        QString error;
+        QVERIFY(api.open(root.path(), &error));
+        const QJsonObject init = McpServer::handle(api, {{QStringLiteral("jsonrpc"), QStringLiteral("2.0")}, {QStringLiteral("id"), 1},
+                                                         {QStringLiteral("method"), QStringLiteral("initialize")},
+                                                         {QStringLiteral("params"), QJsonObject{{QStringLiteral("protocolVersion"), QStringLiteral("2025-03-26")}}}},
+                                                   version);
+        QCOMPARE(init.value(QStringLiteral("result")).toObject().value(QStringLiteral("protocolVersion")).toString(), QStringLiteral("2025-03-26"));
+        QVERIFY(McpServer::handle(api, {{QStringLiteral("method"), QStringLiteral("notifications/initialized")}}, version).isEmpty());
+        const QJsonObject tools = McpServer::handle(api, {{QStringLiteral("id"), 2}, {QStringLiteral("method"), QStringLiteral("tools/list")}}, version);
+        QCOMPARE(tools.value(QStringLiteral("result")).toObject().value(QStringLiteral("tools")).toArray().size(), int(NotesApi::tools().size()));
+        const QJsonObject call = McpServer::handle(api, {{QStringLiteral("id"), 3}, {QStringLiteral("method"), QStringLiteral("tools/call")},
+                                                         {QStringLiteral("params"), QJsonObject{{QStringLiteral("name"), QStringLiteral("read_note")},
+                                                                                                {QStringLiteral("arguments"), QJsonObject{{QStringLiteral("note"), QStringLiteral("hello there")}}}}}},
+                                                   version);
+        QVERIFY(!call.value(QStringLiteral("result")).toObject().value(QStringLiteral("isError")).toBool());
+        QCOMPARE(call.value(QStringLiteral("result")).toObject().value(QStringLiteral("structuredContent")).toObject()
+                     .value(QStringLiteral("path")).toString(), QStringLiteral("Hello there.md"));
+        const QJsonObject missing = McpServer::handle(api, {{QStringLiteral("id"), 4}, {QStringLiteral("method"), QStringLiteral("tools/call")},
+                                                            {QStringLiteral("params"), QJsonObject{{QStringLiteral("name"), QStringLiteral("read_note")},
+                                                                                                   {QStringLiteral("arguments"), QJsonObject{{QStringLiteral("note"), QStringLiteral("gone")}}}}}},
+                                                      version);
+        QVERIFY(missing.value(QStringLiteral("result")).toObject().value(QStringLiteral("isError")).toBool());
+        QCOMPARE(McpServer::handle(api, {{QStringLiteral("id"), 5}, {QStringLiteral("method"), QStringLiteral("nope")}}, version)
+                     .value(QStringLiteral("error")).toObject().value(QStringLiteral("code")).toInt(), -32601);
+    }
+
+    void choosesAndReadsTheAi() {
+        QSettings().remove(QStringLiteral("ai/provider"));
+        qputenv("OMAZETTEL_AI", "");
+        Assistant::Choice choice = Assistant::choose(QStringLiteral("claude-code:sonnet"));
+        QCOMPARE(choice.provider, QStringLiteral("claude"));
+        QCOMPARE(choice.model, QStringLiteral("sonnet"));
+        QCOMPARE(choice.origin, QStringLiteral("--ai"));
+        choice = Assistant::choose(QStringLiteral("ollama:llama3.2:8b"));
+        QCOMPARE(choice.provider, QStringLiteral("ollama"));
+        QCOMPARE(choice.model, QStringLiteral("llama3.2:8b"));
+
+        Assistant::save(QStringLiteral("codex"));
+        QCOMPARE(Assistant::choose(QString()).provider, QStringLiteral("codex"));
+        qputenv("OMAZETTEL_AI", "gemini");
+        QCOMPARE(Assistant::choose(QString()).provider, QStringLiteral("gemini"));
+        qputenv("OMAZETTEL_AI", "");
+        Assistant::save(QString());
+
+        QVERIFY(Assistant::problem({QStringLiteral("grok"), QString(), QStringLiteral("--ai")}).contains(QStringLiteral("cannot write notes")));
+        QVERIFY(Assistant::problem({QStringLiteral("openai"), QString(), QStringLiteral("--ai")}).contains(QStringLiteral("openai:<model>")));
+
+        QString error;
+        QCOMPARE(Assistant::extractJson(QStringLiteral("Sure!\n```json\n{\"a\": [1]}\n```"), &error)
+                     .value(QStringLiteral("a")).toArray().size(), 1);
+        QVERIFY(error.isEmpty());
+        QVERIFY(Assistant::extractJson(QStringLiteral("no idea"), &error).isEmpty());
+        QVERIFY(!error.isEmpty());
+    }
+
+    void writesMeetingNotesWithAnAgent() {
+        // A stand-in "claude" that answers like the real one.
+        QTemporaryDir bin;
+        QVERIFY(bin.isValid());
+        const QString fake = bin.filePath(QStringLiteral("claude"));
+        writeFile(fake,
+                  "#!/bin/sh\ncat > \"$PWD/prompt.txt\"\ncp \"$PWD/prompt.txt\" \"" + bin.filePath(QStringLiteral("seen.txt")).toUtf8() + "\"\n"
+                  "printf '%s' '{\"title\":\"Cutover plan\",\"summary\":\"Friday cutover agreed.\",\"attendees\":[\"Ann\",\"Bo\"],"
+                  "\"tags\":[\"atlas\"],\"sections\":{\"Agenda\":[\"Cutover\"],\"Notes\":\"Bo finishes [[Atlas]] models.\","
+                  "\"Decisions\":\"\",\"Action items\":\"- [ ] Bo: finish models (Thu)\"}}'\n");
+        QFile(fake).setPermissions(QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
+        const QByteArray oldPath = qgetenv("PATH");
+        qputenv("PATH", bin.path().toUtf8() + ':' + oldPath);
+
+        QTemporaryDir root;
+        writeFile(root.filePath(QStringLiteral("Atlas.md")), "# Atlas\n");
+        writeFile(root.filePath(QStringLiteral("call.vtt")),
+                  "WEBVTT\n\n00:00:01.000 --> 00:00:02.000\n<v Ann>Cutover Friday?</v>\n\n"
+                  "00:00:02.000 --> 00:00:03.000\n<v Bo>Yes, models by Thursday.</v>\n");
+        NotesApi api;
+        QString error;
+        QVERIFY(api.open(root.path(), &error));
+        const QJsonObject made = api.call(*NotesApi::toolNamed(QStringLiteral("transcribe")),
+                                          {{QStringLiteral("file"), root.filePath(QStringLiteral("call.vtt"))},
+                                           {QStringLiteral("note"), QString()},
+                                           {QStringLiteral("ai"), QStringLiteral("claude")}});
+        qputenv("PATH", oldPath);
+
+        QCOMPARE(made.value(QStringLiteral("writtenBy")).toString(), QStringLiteral("Claude Code"));
+        QCOMPARE(made.value(QStringLiteral("actionItems")).toArray().first().toString(), QStringLiteral("Bo: finish models (Thu)"));
+        const QString path = made.value(QStringLiteral("path")).toString();
+        QVERIFY(path.startsWith(QStringLiteral("Meetings/")) && path.endsWith(QStringLiteral(" Cutover plan.md")));
+        const QString text = readFile(root.filePath(path));
+        QVERIFY(text.contains(QStringLiteral("attendees: [\"Ann\", \"Bo\"]")));
+        QVERIFY(text.contains(QStringLiteral("abstract: \"Friday cutover agreed.\"")));
+        QVERIFY(text.contains(QStringLiteral("**Attendees:** Ann, Bo\n")));
+        QVERIFY(text.contains(QStringLiteral("## Agenda\n\n- Cutover\n")));
+        QVERIFY(text.contains(QStringLiteral("## Decisions\n\n## Action items\n\n- [ ] Bo: finish models (Thu)\n")));
+        QVERIFY(text.contains(QStringLiteral("## Transcript\n\nAnn: Cutover Friday?\n\nBo: Yes, models by Thursday.\n")));
+        // The AI was told the headings and the notes it may link.
+        const QString prompt = readFile(bin.filePath(QStringLiteral("seen.txt")));
+        QVERIFY(prompt.contains(QStringLiteral("\"Action items\":")));
+        QVERIFY(prompt.contains(QStringLiteral("only these): Atlas.")));
+        QVERIFY(prompt.contains(QStringLiteral("Ann: Cutover Friday?")));
+
+        // No AI: the transcript alone, named after the file.
+        const QJsonObject plain = api.call(*NotesApi::toolNamed(QStringLiteral("transcribe")),
+                                           {{QStringLiteral("file"), root.filePath(QStringLiteral("call.vtt"))},
+                                            {QStringLiteral("note"), QString()},
+                                            {QStringLiteral("ai"), QStringLiteral("none")}});
+        QVERIFY(plain.value(QStringLiteral("path")).toString().endsWith(QStringLiteral(" call.md")));
+
+        // A missing AI is reported before anything is transcribed.
+        bool refused = false;
+        try {
+            api.call(*NotesApi::toolNamed(QStringLiteral("transcribe")),
+                     {{QStringLiteral("file"), QStringLiteral("/nonexistent.mp3")}, {QStringLiteral("note"), QString()},
+                      {QStringLiteral("ai"), QStringLiteral("openai")}});
+        } catch (const NotesApi::Error &failure) {
+            refused = failure.message.contains(QStringLiteral("openai:<model>"));
+        }
+        QVERIFY(refused);
+    }
+
+    void explainsSyncFailures() {
+        QCOMPARE(Sync::hostOf(QStringLiteral("git@codeberg.org:me/notes.git")), QStringLiteral("codeberg.org"));
+        QCOMPARE(Sync::hostOf(QStringLiteral("https://me:secret@git.example.com:3000/me/notes.git")), QStringLiteral("git.example.com"));
+        QCOMPARE(Sync::hostOf(QStringLiteral("ssh://git@gitlab.example.org:2222/me/notes.git")), QStringLiteral("gitlab.example.org"));
+        QCOMPARE(Sync::hostKindOf(QStringLiteral("https://github.com/me/notes.git")), QStringLiteral("github"));
+        QCOMPARE(Sync::hostKindOf(QStringLiteral("git@codeberg.org:me/notes.git")), QStringLiteral("forgejo"));
+        QCOMPARE(Sync::hostKindOf(QStringLiteral("https://gitlab.com/me/notes.git")), QStringLiteral("gitlab"));
+        QCOMPARE(Sync::hostKindOf(QStringLiteral("https://git.example.com/me/notes.git")), QStringLiteral("other"));
+
+        const QString github = QStringLiteral("https://github.com/me/notes.git");
+        const auto kind = [](const QString &err, const QString &url) { return Sync::explain(err, url, QStringLiteral("push")).kind; };
+        QCOMPARE(kind(QStringLiteral("remote: error: GH007: Your push would publish a private email address.\n"
+                                     "error: failed to push some refs to 'https://github.com/me/notes.git'"), github),
+                 QStringLiteral("private-email"));
+        QCOMPARE(kind(QStringLiteral("git@gitlab.com: Permission denied (publickey)."), QStringLiteral("git@gitlab.com:me/n.git")),
+                 QStringLiteral("ssh-key"));
+        QVERIFY(Sync::explain(QStringLiteral("git@gitlab.com: Permission denied (publickey)."), QStringLiteral("git@gitlab.com:me/n.git"),
+                              QStringLiteral("fetch")).message.contains(QStringLiteral("https://gitlab.com/-/user_settings/ssh_keys")));
+        QCOMPARE(kind(QStringLiteral("fatal: could not read Username for 'https://git.example.com': terminal prompts disabled"),
+                      QStringLiteral("https://git.example.com/me/n.git")), QStringLiteral("auth"));
+        QCOMPARE(kind(QStringLiteral("remote: Permission to me/notes.git denied to other.\nfatal: unable to access: The requested URL returned error: 403"), github),
+                 QStringLiteral("forbidden"));
+        QCOMPARE(kind(QStringLiteral(" ! [rejected]        main -> main (fetch first)\nerror: failed to push some refs"), github), QStringLiteral("behind"));
+        QCOMPARE(kind(QStringLiteral("fatal: unable to access: SSL certificate problem: self-signed certificate"),
+                      QStringLiteral("https://git.lan/me/n.git")), QStringLiteral("certificate"));
+        QCOMPARE(kind(QStringLiteral("fatal: unable to access: Could not resolve host: github.com"), github), QStringLiteral("network"));
+        // Something unknown: the server's own words, not "failed to push some refs".
+        const Sync::Explained odd = Sync::explain(QStringLiteral("remote: Quota exceeded for this namespace\nerror: failed to push some refs to 'x'"),
+                                                  github, QStringLiteral("push"));
+        QCOMPARE(odd.message, QStringLiteral("git push failed: Quota exceeded for this namespace"));
+        QVERIFY(Sync::explain(QString(), github, QStringLiteral("push"), 128).message.contains(QStringLiteral("exit 128")));
+    }
+
+    void reportsWhyAPushWasRefused() {
+        // A local "server" that refuses pushes the way GitHub does.
+        QTemporaryDir server;
+        QTemporaryDir notes;
+        const auto git = [](const QString &dir, const QStringList &args) {
+            QProcess process;
+            process.setWorkingDirectory(dir);
+            process.start(QStringLiteral("git"), args);
+            process.waitForFinished(30000);
+            return process.exitCode() == 0;
+        };
+        QVERIFY(git(server.path(), {QStringLiteral("init"), QStringLiteral("--bare"), QStringLiteral("-b"), QStringLiteral("main")}));
+        writeFile(server.filePath(QStringLiteral("hooks/pre-receive")),
+                  "#!/bin/sh\necho 'error: GH007: Your push would publish a private email address.' >&2\nexit 1\n");
+        QFile(server.filePath(QStringLiteral("hooks/pre-receive"))).setPermissions(QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
+        QVERIFY(git(notes.path(), {QStringLiteral("init"), QStringLiteral("-b"), QStringLiteral("main")}));
+        git(notes.path(), {QStringLiteral("config"), QStringLiteral("user.name"), QStringLiteral("T")});
+        git(notes.path(), {QStringLiteral("config"), QStringLiteral("user.email"), QStringLiteral("t@example.com")});
+        QVERIFY(git(notes.path(), {QStringLiteral("remote"), QStringLiteral("add"), QStringLiteral("origin"), server.path()}));
+        writeFile(notes.filePath(QStringLiteral("Note.md")), "# Note\n");
+
+        const Sync::Result result = Sync::runSync(notes.path(), QStringLiteral("main"), true, QStringLiteral("T"));
+        QVERIFY(!result.ok);
+        QCOMPARE(result.kind, QStringLiteral("private-email"));
+        QVERIFY(result.details.contains(QStringLiteral("GH007")));
+        QVERIFY(result.message.contains(QStringLiteral("no-reply")));
+
+        // Without the hook, the connection test says reading and writing work.
+        QFile::remove(server.filePath(QStringLiteral("hooks/pre-receive")));
+        const Sync::Result test = Sync::testRemoteBlocking(notes.path(), QStringLiteral("main"));
+        QVERIFY2(test.ok, qPrintable(test.message));
+        QVERIFY(Sync::runSync(notes.path(), QStringLiteral("main"), true, QStringLiteral("T")).ok);
     }
 
 private:

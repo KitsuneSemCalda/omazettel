@@ -3,8 +3,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 
 // Sync and version history for the notes folder: turn git on, connect a
-// remote (or make a GitHub repository), sync, and resolve conflicts from git
-// or from synced-folder tools.
+// remote on any git server (or make a repository on GitHub, GitLab, Codeberg,
+// Forgejo, Gitea or Gogs), sync, see why a sync failed, and resolve
+// conflicts from git or from synced-folder tools.
 Dialog {
     id: root
     objectName: "syncDialog"
@@ -20,6 +21,12 @@ Dialog {
     property int containerWidth: 900
     property int containerHeight: 700
     property string feedback: ""
+    property bool showDetails: false
+    property bool editingIdentity: false
+    // Where a new repository is made: github, gitlab, codeberg, forgejo, gitea, gogs.
+    property string provider: "github"
+    readonly property bool needsServer: provider === "gitlab" || provider === "forgejo" || provider === "gitea" || provider === "gogs"
+    readonly property bool needsToken: provider !== "github" || !sync.ghAvailable
     readonly property color errorColor: darkMode ? "#e8a0a0" : "#a03030"
 
     signal syncRequested()
@@ -44,6 +51,10 @@ Dialog {
         feedback = "";
         remoteField.text = sync.remoteUrl;
         repoNameField.text = vault.rootName.replace(/\s+/g, "-");
+        showDetails = false;
+        editingIdentity = false;
+        tokenField.text = "";
+        createTokenField.text = "";
     }
 
     modal: true
@@ -92,6 +103,8 @@ Dialog {
 
     component Field: Rectangle {
         property alias text: input.text
+        property alias echoMode: input.echoMode
+        property string placeholder: ""
         Layout.fillWidth: true
         height: root.scaled(30)
         color: root.fieldColor
@@ -107,6 +120,33 @@ Dialog {
             color: root.textColor
             font.family: Qt.application.font.family
             font.pixelSize: root.scaled(12)
+            Label {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: input.text.length === 0 && !input.activeFocus
+                text: parent.parent.placeholder
+                color: root.mutedColor
+                font.family: Qt.application.font.family
+                font.pixelSize: root.scaled(12)
+            }
+        }
+    }
+
+    // A choice among a few, shown as words; the chosen one in the accent colour.
+    component Choice: Label {
+        id: choice
+        property bool chosen: false
+        signal clicked()
+        color: chosen ? root.accentColor : (choiceMouse.containsMouse ? root.textColor : root.mutedColor)
+        font.family: Qt.application.font.family
+        font.pixelSize: root.scaled(12)
+        font.underline: chosen
+        MouseArea {
+            id: choiceMouse
+            anchors.fill: parent
+            anchors.margins: -root.scaled(3)
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: choice.clicked()
         }
     }
 
@@ -189,8 +229,116 @@ Dialog {
                 }
             }
             Small {
-                visible: sync.isRepo && sync.message.length > 0
+                visible: sync.isRepo && sync.message.length > 0 && sync.state !== "error"
                 text: sync.message
+            }
+
+            // ── Why the last sync failed ────────────────────────────────────
+            Rectangle {
+                visible: sync.isRepo && sync.state === "error"
+                Layout.fillWidth: true
+                implicitHeight: errorColumn.implicitHeight + root.scaled(20)
+                color: "transparent"
+                border.color: root.errorColor
+                radius: root.scaled(4)
+                ColumnLayout {
+                    id: errorColumn
+                    x: root.scaled(10)
+                    y: root.scaled(10)
+                    width: parent.width - root.scaled(20)
+                    spacing: root.scaled(6)
+                    Label {
+                        objectName: "syncError"
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        text: sync.message.length > 0 ? sync.message : "The last sync failed."
+                        color: root.errorColor
+                        font.family: Qt.application.font.family
+                        font.pixelSize: root.scaled(12)
+                    }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: root.scaled(16)
+                        Action {
+                            objectName: "useNoReplyAction"
+                            visible: sync.errorKind === "private-email"
+                            text: "Use my GitHub no-reply email and sync again"
+                            enabled: !sync.busy
+                            onClicked: {
+                                if (!sync.useNoReplyEmail())
+                                    root.feedback = sync.lastError();
+                            }
+                        }
+                        Action {
+                            visible: sync.remoteUrl.length > 0
+                            text: "Test connection"
+                            enabled: !sync.busy
+                            onClicked: sync.testRemote()
+                        }
+                        Action {
+                            visible: sync.details.length > 0
+                            text: root.showDetails ? "Hide git's message" : "Show git's message"
+                            onClicked: root.showDetails = !root.showDetails
+                        }
+                        Action {
+                            text: "Open the sync log"
+                            onClicked: Qt.openUrlExternally("file://" + sync.logPath)
+                        }
+                    }
+                    TextEdit {
+                        visible: root.showDetails && sync.details.length > 0
+                        Layout.fillWidth: true
+                        readOnly: true
+                        selectByMouse: true
+                        wrapMode: TextEdit.Wrap
+                        text: sync.details
+                        color: root.mutedColor
+                        font.family: Qt.application.font.family
+                        font.pixelSize: root.scaled(11)
+                    }
+                }
+            }
+
+            // ── Who versions are saved as ───────────────────────────────────
+            RowLayout {
+                visible: sync.isRepo && !root.editingIdentity
+                Layout.fillWidth: true
+                spacing: root.scaled(12)
+                Small {
+                    text: "Versions are saved as " + (sync.commitName.length > 0 ? sync.commitName : "(no name)")
+                          + " <" + (sync.commitEmail.length > 0 ? sync.commitEmail : "no email") + ">"
+                }
+                Action {
+                    text: "Change"
+                    onClicked: {
+                        nameField.text = sync.commitName;
+                        emailField.text = sync.commitEmail;
+                        root.editingIdentity = true;
+                    }
+                }
+            }
+            Small {
+                visible: sync.isRepo && sync.hostKind === "github" && sync.commitEmail.length > 0
+                         && sync.commitEmail.indexOf("noreply") < 0 && sync.state !== "error"
+                text: "This email is published with your notes' history on GitHub. If GitHub refuses pushes that "
+                      + "show a private email, use your no-reply address (Change, or the fix offered when a sync fails)."
+            }
+            RowLayout {
+                visible: sync.isRepo && root.editingIdentity
+                Layout.fillWidth: true
+                spacing: root.scaled(8)
+                Field { id: nameField; placeholder: "Name" }
+                Field { id: emailField; placeholder: "Email" }
+                Action {
+                    text: "Save"
+                    onClicked: {
+                        if (sync.setCommitIdentity(nameField.text, emailField.text))
+                            root.editingIdentity = false;
+                        else
+                            root.feedback = sync.lastError();
+                    }
+                }
+                Action { text: "Cancel"; onClicked: root.editingIdentity = false }
             }
             RowLayout {
                 visible: sync.isRepo
@@ -213,8 +361,9 @@ Dialog {
             Heading { visible: sync.isRepo; text: "Remote" }
             Small {
                 visible: sync.isRepo
-                text: "Where versions are synced: a git address such as git@github.com:you/notes.git or "
-                      + "https://github.com/you/notes.git. Uses your git login (gh auth setup-git or an SSH key)."
+                text: "Where versions are synced: any git server, such as GitHub, GitLab, Codeberg, Forgejo, Gitea, "
+                      + "Gogs or your own. An SSH address (git@host:you/notes.git) signs in with your SSH key; an "
+                      + "https address (https://host/you/notes.git) with gh for GitHub, or an access token below."
             }
             RowLayout {
                 visible: sync.isRepo
@@ -224,22 +373,103 @@ Dialog {
                 Action {
                     text: "Save"
                     onClicked: root.feedback = sync.setRemote(remoteField.text)
-                               ? (remoteField.text.trim().length > 0 ? "Remote saved." : "Remote removed.")
+                               ? (remoteField.text.trim().length > 0 ? "Remote saved. Test the connection to check signing in." : "Remote removed.")
                                : sync.lastError()
                 }
+                Action {
+                    visible: sync.remoteUrl.length > 0
+                    text: "Test"
+                    enabled: !sync.busy
+                    onClicked: sync.testRemote()
+                }
+            }
+            // Signing in to an https remote that gh does not cover.
+            Small {
+                visible: sync.isRepo && sync.remoteIsHttps && sync.hostKind !== "github"
+                text: "Sign in with a token: make an access token with permission to write repositories in "
+                      + sync.remoteHost + "'s settings ("
+                      + (sync.hostKind === "gitlab" ? "Preferences → Access tokens, scope write_repository"
+                         : "Settings → Applications → Access tokens, repository read and write") + "). "
+                      + "It is kept in your desktop keyring."
             }
             RowLayout {
-                visible: sync.isRepo && sync.remoteUrl.length === 0 && sync.ghAvailable
+                visible: sync.isRepo && sync.remoteIsHttps && sync.hostKind !== "github"
                 Layout.fillWidth: true
-                spacing: root.scaled(12)
-                Small { text: "Or make a private GitHub repository:"; Layout.fillWidth: false }
-                Field { id: repoNameField }
+                spacing: root.scaled(8)
+                Field { id: tokenUserField; placeholder: "Username"; Layout.preferredWidth: root.scaled(150); Layout.fillWidth: false }
+                Field { id: tokenField; placeholder: "Access token"; echoMode: TextInput.Password }
                 Action {
+                    text: "Save token"
+                    enabled: tokenField.text.trim().length > 0
+                    onClicked: {
+                        if (sync.saveToken(tokenUserField.text, tokenField.text)) {
+                            tokenField.text = "";
+                            root.feedback = "Token saved. Testing the connection…";
+                            sync.testRemote();
+                        } else {
+                            root.feedback = sync.lastError();
+                        }
+                    }
+                }
+            }
+            Small {
+                visible: sync.isRepo && sync.remoteUrl.length === 0
+                text: "Or make a private repository on:"
+            }
+            Flow {
+                visible: sync.isRepo && sync.remoteUrl.length === 0
+                Layout.fillWidth: true
+                spacing: root.scaled(14)
+                Repeater {
+                    model: [{ id: "github", name: "GitHub" }, { id: "gitlab", name: "GitLab" },
+                            { id: "codeberg", name: "Codeberg" }, { id: "forgejo", name: "Forgejo" },
+                            { id: "gitea", name: "Gitea" }, { id: "gogs", name: "Gogs" }]
+                    delegate: Choice {
+                        required property var modelData
+                        text: modelData.name
+                        chosen: root.provider === modelData.id
+                        onClicked: {
+                            root.provider = modelData.id;
+                            serverField.text = modelData.id === "gitlab" ? "https://gitlab.com" : "";
+                        }
+                    }
+                }
+            }
+            Small {
+                visible: sync.isRepo && sync.remoteUrl.length === 0
+                text: root.provider === "github"
+                      ? (sync.ghAvailable ? "Uses your GitHub CLI login (gh auth login)."
+                                          : "Paste a GitHub token that may create repositories (github.com/settings/tokens), or install gh.")
+                      : root.provider === "gitlab"
+                        ? "GitLab.com or your own GitLab. The token needs the api scope (Preferences → Access tokens)."
+                        : root.provider === "codeberg"
+                          ? "The token needs repository write access (codeberg.org/user/settings/applications)."
+                          : "Your server's address, and a token with repository write access (Settings → Applications)."
+            }
+            RowLayout {
+                visible: sync.isRepo && sync.remoteUrl.length === 0 && root.needsServer
+                Layout.fillWidth: true
+                spacing: root.scaled(8)
+                Field { id: serverField; placeholder: root.provider === "gitlab" ? "https://gitlab.com" : "https://git.example.com" }
+            }
+            RowLayout {
+                visible: sync.isRepo && sync.remoteUrl.length === 0
+                Layout.fillWidth: true
+                spacing: root.scaled(8)
+                Field { id: repoNameField; placeholder: "Repository name"; Layout.preferredWidth: root.scaled(170); Layout.fillWidth: !root.needsToken }
+                Field { id: createTokenField; visible: root.needsToken; placeholder: "Access token"; echoMode: TextInput.Password }
+                Action {
+                    objectName: "createRepoAction"
                     text: "Create"
                     enabled: !sync.busy && repoNameField.text.trim().length > 0
+                             && (!root.needsToken || createTokenField.text.trim().length > 0)
+                             && (!root.needsServer || serverField.text.trim().length > 0)
                     onClicked: {
-                        if (!sync.createGitHubRepo(repoNameField.text, true))
+                        if (!sync.createRemoteRepo(root.provider, serverField.text, root.needsToken ? createTokenField.text : "",
+                                                   repoNameField.text, true))
                             root.feedback = sync.lastError();
+                        else
+                            createTokenField.text = "";
                     }
                 }
             }

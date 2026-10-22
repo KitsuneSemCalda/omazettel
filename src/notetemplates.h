@@ -55,6 +55,10 @@ public:
     // Returns {path, cursor, existed} or {} with error set.
     Q_INVOKABLE QVariantMap create(const QString &name, const QString &title,
                                    const QString &targetFolder, const QString &exactName = QString());
+    // The same, filling {{date}} and the rest from when (the command line's
+    // `daily --date`) instead of now.
+    QVariantMap createAt(const QString &name, const QString &title, const QString &targetFolder,
+                         const QString &exactName, const QDateTime &when);
     Q_INVOKABLE QString lastError() const { return m_lastError; }
     Q_INVOKABLE void reload() { ++m_revision; emit changed(); }
 

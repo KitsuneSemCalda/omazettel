@@ -22,7 +22,7 @@
 #include "sync.h"
 #include "vault.h"
 
-#define OMAZETTEL_VERSION "0.6.1"
+#define OMAZETTEL_VERSION "0.7.0"
 
 int main(int argc, char *argv[]) {
     // Answered before the application exists, so they need no display.

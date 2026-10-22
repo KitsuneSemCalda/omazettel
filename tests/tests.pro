@@ -1,10 +1,14 @@
 QT += core gui concurrent quick testlib
-CONFIG += testcase c++17
+CONFIG += testcase c++17 exceptions
 TEMPLATE = app
 TARGET = tst_omazettel
 
 INCLUDEPATH += ../src
 SOURCES += \
+    ../src/transcriber.cpp \
+    ../src/mcpserver.cpp \
+    ../src/notesapi.cpp \
+    ../src/assistant.cpp \
     tst_omazettel.cpp \
     ../src/backend.cpp \
     ../src/apptheme.cpp \
@@ -21,6 +25,10 @@ SOURCES += \
     ../src/zettel.cpp \
     ../src/vault.cpp
 HEADERS += \
+    ../src/transcriber.h \
+    ../src/mcpserver.h \
+    ../src/notesapi.h \
+    ../src/assistant.h \
     ../src/apptheme.h \
     ../src/backend.h \
     ../src/cli.h \

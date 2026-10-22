@@ -1,10 +1,14 @@
 QT += core gui concurrent widgets printsupport qml quick quickcontrols2 quickdialogs2 dbus
 
-CONFIG += c++17 release
+CONFIG += c++17 exceptions release
 TARGET = omazettel
 TEMPLATE = app
 
 HEADERS += \
+    src/transcriber.h \
+    src/mcpserver.h \
+    src/notesapi.h \
+    src/assistant.h \
     src/apptheme.h \
     src/backend.h \
     src/cli.h \
@@ -20,6 +24,10 @@ HEADERS += \
     src/zettel.h
 
 SOURCES += \
+    src/transcriber.cpp \
+    src/mcpserver.cpp \
+    src/notesapi.cpp \
+    src/assistant.cpp \
     src/main.cpp \
     src/backend.cpp \
     src/apptheme.cpp \

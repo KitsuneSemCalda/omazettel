@@ -291,6 +291,12 @@ NoteTemplates::Rendered NoteTemplates::render(const QString &templateText, const
 
 QVariantMap NoteTemplates::create(const QString &name, const QString &title,
                                   const QString &targetFolder, const QString &exactName) {
+    return createAt(name, title, targetFolder, exactName, QDateTime::currentDateTime());
+}
+
+QVariantMap NoteTemplates::createAt(const QString &name, const QString &title,
+                                    const QString &targetFolder, const QString &exactName,
+                                    const QDateTime &when) {
     m_lastError.clear();
     if (m_root.isEmpty()) {
         m_lastError = QStringLiteral("Open a notes folder first.");
@@ -302,7 +308,7 @@ QVariantMap NoteTemplates::create(const QString &name, const QString &title,
         return {};
     }
 
-    const QDateTime now = QDateTime::currentDateTime();
+    const QDateTime now = when.isValid() ? when : QDateTime::currentDateTime();
     QString folderPath = targetFolder.isEmpty() ? m_root : targetFolder;
     Rendered rendered = render(readText(templatePath), title.trimmed(), author(),
                                QFileInfo(folderPath).fileName(), now);

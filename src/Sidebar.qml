@@ -985,7 +985,7 @@ Rectangle {
                 if (sync.busy) return "Syncing…";
                 if (s === "off") return "History off";
                 if (s === "conflict") return "Conflicts to resolve";
-                if (s === "error") return "Sync failed";
+                if (s === "error") return "Sync failed · see why";
                 if (s === "local") return sync.changeCount > 0 ? sync.changeCount + " unsaved in history" : "History on";
                 var when = syncBar.ago(sync.lastSync);
                 if (s === "changes") return sync.changeCount + (sync.changeCount === 1 ? " change" : " changes")

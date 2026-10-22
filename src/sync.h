@@ -43,6 +43,20 @@ class Sync : public QObject {
     Q_PROPERTY(bool autoSync READ autoSync WRITE setAutoSync NOTIFY settingsChanged)
     Q_PROPERTY(int intervalMinutes READ intervalMinutes WRITE setIntervalMinutes NOTIFY settingsChanged)
     Q_PROPERTY(int revision READ revision NOTIFY changed)
+    // After a failed sync: git's own words, and what kind of failure it was
+    // (private-email, auth, ssh-key, host-key, forbidden, too-large,
+    // rejected, behind, certificate, network, not-found, other).
+    Q_PROPERTY(QString details READ details NOTIFY changed)
+    Q_PROPERTY(QString errorKind READ errorKind NOTIFY changed)
+    // The remote's server and what runs it: github, gitlab, forgejo (also
+    // Codeberg), gitea, gogs or other.
+    Q_PROPERTY(QString remoteHost READ remoteHost NOTIFY changed)
+    Q_PROPERTY(QString hostKind READ hostKind NOTIFY changed)
+    Q_PROPERTY(bool remoteIsHttps READ remoteIsHttps NOTIFY changed)
+    // The name and email versions are saved under, in this repository.
+    Q_PROPERTY(QString commitName READ commitName NOTIFY changed)
+    Q_PROPERTY(QString commitEmail READ commitEmail NOTIFY changed)
+    Q_PROPERTY(QString logPath READ logPath CONSTANT)
 
 public:
     explicit Sync(QObject *parent = nullptr);
@@ -66,6 +80,14 @@ public:
     int intervalMinutes() const { return m_intervalMinutes; }
     void setIntervalMinutes(int minutes);
     int revision() const { return m_revision; }
+    QString details() const { return m_details; }
+    QString errorKind() const { return m_errorKind; }
+    QString remoteHost() const { return hostOf(m_remoteUrl); }
+    QString hostKind() const;
+    bool remoteIsHttps() const { return m_remoteUrl.startsWith(QLatin1String("http")); }
+    QString commitName() const { return m_commitName; }
+    QString commitEmail() const { return m_commitEmail; }
+    static QString logPath();
 
     Q_INVOKABLE void setRoot(const QString &notesRoot);
     // Re-reads the repository's status and the folder's conflict copies.
@@ -78,6 +100,24 @@ public:
     // Makes a GitHub repository with gh, connects it and pushes (in the
     // background). Emits synced().
     Q_INVOKABLE bool createGitHubRepo(const QString &name, bool isPrivate);
+    // Makes a repository on GitHub (gh, or a token), GitLab, Forgejo,
+    // Codeberg, Gitea or Gogs, connects it, keeps the token for git, and
+    // pushes (in the background). server is the address of a self-hosted
+    // one (default gitlab.com, codeberg.org). Emits synced().
+    Q_INVOKABLE bool createRemoteRepo(const QString &provider, const QString &server, const QString &token,
+                                      const QString &name, bool isPrivate);
+    // Keeps a username and access token for the https remote in git's
+    // credential store (the desktop keyring when there is one).
+    Q_INVOKABLE bool saveToken(const QString &username, const QString &token);
+    // Checks the remote can be read and written, without changing it, in
+    // the background. Emits synced() with the verdict.
+    Q_INVOKABLE bool testRemote();
+    // Saves versions under this name and email in this repository.
+    Q_INVOKABLE bool setCommitIdentity(const QString &name, const QString &email);
+    // For GitHub's "push would publish a private email": switches this
+    // repository to the account's no-reply address, re-signs the versions
+    // not yet pushed with it, and syncs (in the background).
+    Q_INVOKABLE bool useNoReplyEmail();
 
     // ── Syncing ─────────────────────────────────────────────────────────────
     // Commit, then fetch, merge and push when there is a remote, in the
@@ -107,7 +147,29 @@ public:
         QString message;
         QStringList updated;   // Absolute paths the merge changed.
         QStringList conflicts; // Absolute paths.
+        QString details;       // git's words, when it failed.
+        QString kind;          // The kind of failure (see errorKind).
     };
+    struct Explained {
+        QString message;
+        QString kind;
+    };
+    // What a failed git step's error output means, and what to do about it.
+    static Explained explain(const QString &errorOutput, const QString &remoteUrl, const QString &step,
+                             int exitCode = 1);
+    static QString hostOf(const QString &url);
+    static QString hostKindOf(const QString &url);
+    // Blocking versions, for worker threads and the command line.
+    static Result testRemoteBlocking(const QString &repoRoot, const QString &branch);
+    static Result useNoReplyBlocking(const QString &repoRoot, const QString &branch, bool hasRemote,
+                                     const QString &fallbackAuthor);
+    static Result createRemoteBlocking(const QString &repoRoot, const QString &branch, const QString &provider,
+                                       const QString &server, const QString &token, const QString &name,
+                                       bool isPrivate, const QString &fallbackAuthor);
+    static bool storeToken(const QString &repoRoot, const QString &url, const QString &username,
+                           const QString &token, QString *error);
+    // Adds a line to the sync log (credentials in addresses are hidden).
+    static void log(const QString &repoRoot, const QString &what, const Result &result);
     // The whole sync, blocking; runs on a worker thread.
     static Result runSync(const QString &repoRoot, const QString &branch, bool hasRemote,
                           const QString &fallbackAuthor);
@@ -132,6 +194,11 @@ private:
     QString m_remoteUrl;
     QString m_branch;
     QString m_message;
+    QString m_details;
+    QString m_errorKind;
+    QString m_commitName;
+    QString m_commitEmail;
+    QString m_hostKindSetting;
     QString m_error;
     QDateTime m_lastSync;
     int m_changeCount = 0;

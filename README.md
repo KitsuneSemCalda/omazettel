@@ -14,7 +14,7 @@ OmaZettel is an independent fork of [Omawrite](https://github.com/omacom/omawrit
 by David Heinemeier Hansson, extended into a notes system. It is not made or
 endorsed by Omacom or the Omarchy project.
 
-> **Status: 0.6.1, early.** Everything below works and is covered by tests, but
+> **Status: 0.7.0, early.** Everything below works and is covered by tests, but
 > OmaZettel is young: expect rough edges, and keep your notes folder in git or
 > another backup. Bug reports and ideas are welcome in the issues.
 
@@ -31,6 +31,7 @@ endorsed by Omacom or the Omarchy project.
 - [Export](#export)
 - [Citations](#citations)
 - [Sync and history](#sync-and-history)
+- [Command line and AI assistants](#command-line-and-ai-assistants)
 - [Colors and themes](#colors-and-themes)
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [Where things are kept](#where-things-are-kept)
@@ -63,6 +64,12 @@ endorsed by Omacom or the Omarchy project.
   GitHub repository you create in one click, resolve conflicts side by side,
   and see or restore any earlier version of a note. Conflict copies from
   Syncthing, Nextcloud and Dropbox are spotted and resolved the same way.
+- **A command line and AI tools.** `omazettel search`, `new`, `append`,
+  `daily`, `capture`, `tasks`, `export` and more work from a terminal or a
+  script without opening a window. The same commands serve AI assistants as
+  an MCP server and a Claude skill: "turn this meeting recording into a note",
+  "add this to my Atlas note". Meeting captions and recordings become text
+  on your own computer.
 - **Your theme's colors**, through an Omarchy theme template, or the fixed
   Oma palette shared with OmaShow and the other Oma apps.
 - From Omawrite: a calm editor that hides Markdown markers away from the caret,
@@ -101,6 +108,8 @@ sudo pacman -S --needed base-devel git qt6-base qt6-declarative xdg-desktop-port
 | Creating a private GitHub repository to sync with | `github-cli` | Then run `gh auth login` and `gh auth setup-git` once |
 | Editing Word or OpenDocument export styles | `libreoffice-fresh` | Opens reference documents |
 | Citations | none | Use a `.bib` or CSL JSON file, for example from Zotero with Better BibTeX |
+| Transcribing meeting recordings | `ffmpeg`, and Voxtype (Omarchy's dictation: `omarchy voxtype install`) or `whisper.cpp` (AUR) | With whisper.cpp, download a model once: `omazettel transcribe --download-model base.en`. Caption files (.vtt, .srt) and text transcripts need neither |
+| Meeting notes written by AI | An AI you already have: a coding agent (Claude Code, Codex, Gemini CLI, OpenCode, ...), Ollama, or an API key | On Omarchy, your default agent (`omarchy default agent`) is used. `omazettel ai` shows what is set up |
 
 ```sh
 sudo pacman -S --needed pandoc-cli texlive-xetex github-cli
@@ -273,14 +282,39 @@ share them with a few people taking turns, OmaZettel has git built in (… →
 **Sync & history…**, or click the status line at the foot of the sidebar):
 
 1. **Turn on version history.** Every version of every note is kept with git.
-2. **Add a remote**: paste any git address, or click **Create** to make a
-   private GitHub repository with the GitHub CLI. Git uses your usual login
-   (`gh auth setup-git` or an SSH key) and never stops to ask for a password; a
-   login problem shows as a message with a hint.
+2. **Add a remote** on any git server: GitHub, GitLab, Codeberg, Forgejo,
+   Gitea, Gogs, or your own. Paste its address, or pick one of those and click
+   **Create** to make a private repository there:
+   - **GitHub** uses the GitHub CLI (`gh auth login`), or a token.
+   - **GitLab** (gitlab.com or self-hosted) needs a personal access token with
+     the `api` scope.
+   - **Codeberg, Forgejo, Gitea and Gogs** need the server's address (for your
+     own) and an access token with repository write access.
+
+   Signing in: an SSH address (`git@host:you/notes.git`) uses your SSH key; an
+   https address uses gh for GitHub, or an access token you save under **Sign in
+   with a token**, kept in your desktop keyring. **Test** checks that this
+   computer can read and write the remote without changing anything. Git never
+   stops to ask for a password.
 3. **Sync** happens when OmaZettel starts, every 5 minutes (adjustable), and on
    **Ctrl+Alt+S** or the sync button. It saves your changes as a version,
    merges the other side's (never rewriting history) and sends yours. The open
    note is saved first and reloads quietly if the sync changed it.
+
+**When a sync fails**, the sidebar's status line says so; click it (or sync
+by hand) and Sync & history says why and what to do: sign in, add an SSH key,
+trust a server's certificate, move a file that is too big, and so on.
+**Show git's message** has git's own words, and the sync log
+(`~/.local/state/omazettel/sync.log`) keeps every sync. If GitHub refuses a push
+because it would publish your private email, **Use my GitHub no-reply email**
+switches these notes to your `…@users.noreply.github.com` address, re-signs
+the versions not sent yet, and syncs. **Versions are saved as** shows and
+changes the name and email used.
+
+From a terminal, `omazettel sync --check` tests the connection, `--status`
+shows what is waiting, `--fix-email` applies the no-reply fix, and
+`--create gitlab --server https://git.example.com --token -` makes a repository
+(the token is read from standard input).
 
 **Conflicts.** When the same note changed on two devices, the sync stops and
 lists it. **Compare…** shows both versions line by line; choose **Keep mine**,
@@ -303,8 +337,109 @@ and sync, and the conflict screen handles the occasional clash.
 On another computer, clone the repository and choose that folder in OmaZettel:
 
 ```sh
-git clone https://github.com/you/notes.git ~/Notes
+git clone https://github.com/you/notes.git ~/Notes        # or your GitLab, Forgejo, Gitea… address
 ```
+
+## Command line and AI assistants
+
+Everything you do to notes in the window can be done from a terminal, a
+script or an AI assistant, without opening the window. Commands work on the
+notes folder the app has open (or `--vault <folder>`, or `$OMAZETTEL_VAULT`),
+print text in a terminal and JSON when piped (or with `--json`), and take `-`
+to read a value from standard input.
+
+```sh
+omazettel search "quarterly plan"                 # notes, with matching lines
+omazettel show "Atlas"                            # a note's text
+omazettel new "Vendor kickoff" -t Meeting --meta 'attendees=["Ann","Bo"]'
+omazettel append "Vendor kickoff" "- [ ] Send the contract" -s "Action items"
+omazettel capture "Call the bank"                 # to today's daily note, under Log
+omazettel daily yesterday                         # or a date, or -3
+omazettel tasks                                   # open - [ ] tasks in every note
+omazettel rename "Atlas" "Atlas Program"          # and every [[link]] to it
+omazettel export Meetings -p Word                 # a folder as one document
+omazettel sync
+```
+
+| Command | What it does |
+| --- | --- |
+| `info` | The notes folder, templates, export profiles, sync and transcription status |
+| `list`, `search`, `show`, `tags`, `tasks`, `links` | Find and read: by folder, tag or date; full text; one note with its links and backlinks; tags; open tasks; broken links and orphans |
+| `new`, `append`, `set-section`, `set-meta`, `write` | Write: a note from a template (filling its sections and header), add under a heading, replace a section, change header fields, replace a note |
+| `daily`, `capture` | A day's daily note; a quick timestamped line or task in today's |
+| `rename`, `move`, `trash` | Organise, rewriting links as the app does |
+| `export`, `sync` | Pandoc export with your profiles; git sync |
+| `transcribe` | Meeting captions (Teams, Zoom, Meet `.vtt`/`.srt`) as `Speaker: words`; `.docx` and `.txt` transcripts; recordings through Voxtype or whisper.cpp. With `--note`, an AI writes the meeting note |
+| `ai` | Which AI writes notes, whether it and transcription are ready, and how to fix them; `--set` chooses |
+
+`omazettel help <command>` lists a command's options. As in the app, writing a
+`[[link]]` to a note that does not exist makes that note (`--no-link-notes`
+skips it).
+
+**Meetings.** One command turns a meeting into a finished note:
+
+```sh
+omazettel transcribe standup.vtt --note                    # the AI picks the title
+omazettel transcribe ~/Recordings/standup.m4a --note "Atlas standup"
+omazettel transcribe voxtype:latest --note                 # Voxtype's last recorded meeting
+```
+
+OmaZettel reads the captions or transcript (Teams, Zoom and Meet `.vtt`/`.srt`,
+`.docx`, `.txt`), or transcribes a recording (`.m4a`, `.mp3`, `.mp4`, ...) on
+your computer. Then an AI writes a Meeting note: title, attendees, a summary,
+Agenda, Notes, Decisions and Action items as `- [ ] Owner: task (due)`, with
+the transcript kept at the end and links to notes the meeting is about.
+`--ai none` makes the note with the transcript alone, `--no-transcript` leaves
+the transcript out, and `-t` and `-f` choose another template or folder.
+Without `--note`, `transcribe` prints the transcript.
+
+*Transcribing recordings* uses Voxtype, Omarchy's dictation, with the model you
+set up for it (`omarchy voxtype install`, `omarchy voxtype model`), and
+otherwise [whisper.cpp](https://github.com/ggml-org/whisper.cpp)
+(`yay -S whisper.cpp`, then `omazettel transcribe --download-model base.en`).
+Nothing is uploaded.
+
+*The AI* is one you already have. On Omarchy it is your default agent
+(`omarchy default agent claude`), run once with no tools. Choose another with
+`--ai`, or save a choice with `omazettel ai --set`:
+
+| `--ai` | Uses |
+| --- | --- |
+| `claude`, `codex`, `gemini`, `opencode`, `cursor-agent`, `copilot`, `crush`, `pi` | That agent's command line and your sign-in, optionally with a model: `claude:sonnet`, `codex:gpt-5` |
+| `ollama:<model>` | A local model through [Ollama](https://ollama.com), e.g. `ollama:llama3.2`. Nothing leaves your computer |
+| `anthropic[:<model>]` | The Claude API with `ANTHROPIC_API_KEY` (default model `claude-opus-5-5`) |
+| `openai:<model>` | An OpenAI-compatible API with `OPENAI_API_KEY`, or `OPENAI_BASE_URL` for another server |
+
+`omazettel ai` shows which AI will write notes and whether it is ready, the
+agents installed, and whether recordings can be transcribed, each with what to
+install or sign in to if not. `omazettel ai --test` sends it a tiny request.
+The transcript goes to the AI you choose, under that service's terms.
+
+**AI assistants (MCP).** `omazettel mcp` offers every command as a tool to
+assistants that speak the [Model Context Protocol](https://modelcontextprotocol.io),
+along with prompts for a meeting note, adding to a note and a weekly review.
+For Claude Code:
+
+```sh
+claude mcp add --scope user omazettel -- omazettel mcp
+```
+
+For Claude Desktop, Cursor and others, add a server with the command
+`omazettel` and the argument `mcp`. Then ask: "make a meeting note from
+~/Downloads/standup.vtt", "add 'Ann sends the budget Friday' to the action
+items in my Vendor kickoff note", "what did I decide about Atlas this month?"
+
+**Claude skill.** The package installs a skill that teaches Claude Code (and
+other agents that read skills) to use the commands well. Link it into your
+skills folder:
+
+```sh
+mkdir -p ~/.claude/skills
+ln -s /usr/share/omazettel/skills/omazettel ~/.claude/skills/omazettel
+```
+
+The assistant reads and writes only through these commands, in the notes
+folder, and what it sends to its model is up to the assistant you use.
 
 ## Colors and themes
 
@@ -393,9 +528,11 @@ Everything about your notes lives in the notes folder, so it syncs with them:
 App settings (window, recent folders, author, sync timing) are in
 `~/.config/omazettel/omazettel.conf`.
 
+Downloaded transcription models are in `~/.local/share/omazettel/whisper/`.
+
 `omazettel FILE` opens a file; with no arguments OmaZettel reopens your notes
-folder at the last note. `omazettel --help` and `--version` answer in the
-terminal.
+folder at the last note. `omazettel --help` lists the commands (see
+[Command line and AI assistants](#command-line-and-ai-assistants)).
 
 ## Building from source
 
