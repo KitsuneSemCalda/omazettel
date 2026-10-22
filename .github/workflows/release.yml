@@ -50,6 +50,10 @@ jobs:
           install -Dm644 LICENSES/MIT-omawrite.txt "dist/$dir/share/licenses/omazettel/MIT-omawrite.txt"
           install -Dm644 THIRD-PARTY-NOTICES.md "dist/$dir/share/licenses/omazettel/THIRD-PARTY-NOTICES.md"
           install -Dm644 README.md "dist/$dir/share/doc/omazettel/README.md"
+          install -Dm644 skills/omazettel/SKILL.md "dist/$dir/share/omazettel/skills/omazettel/SKILL.md"
+          install -Dm644 themed/omazettel.toml.tpl "dist/$dir/share/omazettel/themed/omazettel.toml.tpl"
+          install -Dm644 pkgbuild/omazettel.svg "dist/$dir/share/icons/hicolor/scalable/apps/omazettel.svg"
+          install -Dm644 pkgbuild/omazettel.desktop "dist/$dir/share/applications/omazettel.desktop"
           tar -C dist -czf "dist/$dir.tar.gz" "$dir"
       - uses: actions/upload-artifact@v4
         with:
